@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   commonBranches,
+  getEstimatedPassingOutYear,
   getProgramLabel,
   studyPrograms,
 } from "../src/utils/academicOptions.js";
@@ -26,4 +27,12 @@ test("registration offers the requested courses with matching year limits", () =
     { name: "Pharmacy", durationYears: 4 },
     { name: "MTech", durationYears: 2 },
   ]);
+});
+
+test("passing-out year is estimated from course duration and current study year", () => {
+  assert.equal(getEstimatedPassingOutYear("1", 4, 2026), 2029);
+  assert.equal(getEstimatedPassingOutYear("4", 4, 2026), 2026);
+  assert.equal(getEstimatedPassingOutYear("2", 2, 2026), 2026);
+  assert.equal(getEstimatedPassingOutYear("", 4, 2026), "");
+  assert.equal(getEstimatedPassingOutYear("5", 4, 2026), "");
 });

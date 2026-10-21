@@ -36,7 +36,7 @@ For the current Render deployment, map the URLs as follows:
 - Frontend `VITE_API_URL`: `https://server-5aqd.onrender.com` (defaulted by `client/.env.production`; a Render environment variable can override it)
 - Backend `CLIENT_ORIGIN`: `https://client-9foq.onrender.com`
 
-Redeploy the frontend after changing its build-time API URL and redeploy the backend after changing its CORS configuration. The frontend static site must also rewrite unknown paths to `/index.html` so routes such as `/login` load on a direct visit or refresh; `client/public/_redirects` provides this rule for Render static sites.
+Redeploy the frontend after changing its build-time API URL and redeploy the backend after changing its CORS configuration. The root `render.yaml` includes the Render static-site rewrite from `/*` to `/index.html`, required for React Router paths such as `/register` to work on direct visits and refreshes. Sync this Blueprint configuration with Render to apply the rule. If the existing frontend service is not managed by a Blueprint, add the same rule in its **Redirects/Rewrites** settings.
 
 Then run:
 
@@ -45,7 +45,7 @@ npm run create-admin
 npm run dev
 ```
 
-After signing in as Admin, add the college's available options on the Programs page. Students can then choose one during registration.
+Student registration offers B-Tech, Degree, Pharmacy, and MTech, with study years limited by the selected course.
 
 / Start the frontend
 Open another PowerShell window in the project folder and run:

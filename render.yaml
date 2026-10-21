@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: client-9foq
+    runtime: static
+    buildCommand: npm --prefix client install && npm --prefix client run build
+    staticPublishPath: ./client/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import SiteLayout from "./layouts/SiteLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
@@ -28,20 +27,6 @@ function SignedInRedirect() {
 }
 
 export default function App() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const handledInitialNavigation = useRef(false);
-
-  useEffect(() => {
-    if (handledInitialNavigation.current) return;
-    handledInitialNavigation.current = true;
-
-    const navigation = window.performance.getEntriesByType("navigation")[0];
-    if (navigation?.type === "reload" && location.pathname !== "/") {
-      navigate("/", { replace: true });
-    }
-  }, [location.pathname, navigate]);
-
   return (
     <Routes>
       <Route element={<SiteLayout />}>

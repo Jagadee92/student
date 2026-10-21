@@ -4,7 +4,11 @@ import { CheckCircle2, ChevronLeft, ChevronRight, UserRoundPlus } from "lucide-r
 import { api } from "../services/api.js";
 import Modal from "../components/Modal.jsx";
 import Notice from "../components/Notice.jsx";
-import { commonBranches, studyPrograms } from "../utils/academicOptions.js";
+import {
+  commonBranches,
+  getEstimatedPassingOutYear,
+  studyPrograms,
+} from "../utils/academicOptions.js";
 
 const initialForm = {
   firstName: "",
@@ -58,7 +62,16 @@ export default function Register() {
     setForm((current) => ({
       ...current,
       [name]: value,
-      ...(name === "program" ? { yearOfStudy: "" } : {}),
+      ...(name === "program"
+        ? { yearOfStudy: "", passingOutYear: "" }
+        : name === "yearOfStudy"
+          ? {
+              passingOutYear: getEstimatedPassingOutYear(
+                value,
+                selectedProgram?.durationYears,
+              ),
+            }
+          : {}),
     }));
   }
 
@@ -239,14 +252,35 @@ export default function Register() {
               </label>
               <label className="form-field">
                 <span>Year of study</span>
-                <select name="yearOfStudy" value={form.yearOfStudy} onChange={updateField} required disabled={!selectedProgram}>
+                <select name="yearOfStudy" value={form.yearOfStudy} onChange={updateField} required>
                   <option value="">Choose year</option>
-                  {Array.from({ length: selectedProgram?.durationYears || 0 }, (_, index) => index + 1).map((year) => <option key={year} value={year}>{year}</option>)}
+                  {Array.from(
+                    { length: selectedProgram?.durationYears || 6 },
+                    (_, index) => index + 1,
+                  ).map((year) => <option key={year} value={year}>{year}</option>)}
                 </select>
+                <small>
+                  {selectedProgram
+                    ? `Choose your current year in ${selectedProgram.name}.`
+                    : "Choose a course to see its study-year range."}
+                </small>
               </label>
               <label className="form-field">
                 <span>Passing-out year</span>
-                <input name="passingOutYear" type="number" min="1980" max="2100" value={form.passingOutYear} onChange={updateField} required />
+                <input
+                  name="passingOutYear"
+                  type="number"
+                  min={new Date().getFullYear()}
+                  max="2100"
+                  value={form.passingOutYear}
+                  onChange={updateField}
+                  placeholder="Choose course and year first"
+                  required
+                />
+                <small>
+                  Estimated from your course duration and current year of study.
+                  You can adjust it if needed.
+                </small>
               </label>
             </div>
             <button type="submit" className="button button-primary button-full" disabled={busy}>
