@@ -32,12 +32,16 @@ export async function api(path, options = {}) {
 
   if (!response.ok) {
     let message = `Request failed with status ${response.status}.`;
+    let data = null;
     try {
-      const data = await response.json();
+      data = await response.json();
       message = data.message || message;
     } catch {
     }
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   if (response.status === 204) return null;

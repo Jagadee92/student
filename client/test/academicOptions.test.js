@@ -6,6 +6,10 @@ import {
   getProgramLabel,
   studyPrograms,
 } from "../src/utils/academicOptions.js";
+import {
+  getPasswordChecks,
+  isStrongPassword,
+} from "../src/utils/passwordValidation.js";
 
 test("program labels display the name managed by the college", () => {
   assert.equal(getProgramLabel("Bachelor of Computer Applications"), "Bachelor of Computer Applications");
@@ -35,4 +39,11 @@ test("passing-out year is estimated from course duration and current study year"
   assert.equal(getEstimatedPassingOutYear("2", 2, 2026), 2026);
   assert.equal(getEstimatedPassingOutYear("", 4, 2026), "");
   assert.equal(getEstimatedPassingOutYear("5", 4, 2026), "");
+});
+
+test("password strength requires length, mixed case, a number, and a symbol", () => {
+  assert.equal(isStrongPassword("StrongPass123!"), true);
+  assert.equal(isStrongPassword("weakpass123!"), false);
+  assert.equal(isStrongPassword("StrongPass!"), false);
+  assert.equal(getPasswordChecks("StrongPass123!").special, true);
 });

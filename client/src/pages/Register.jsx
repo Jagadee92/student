@@ -9,6 +9,10 @@ import {
   getEstimatedPassingOutYear,
   studyPrograms,
 } from "../utils/academicOptions.js";
+import {
+  getPasswordChecks,
+  isStrongPassword,
+} from "../utils/passwordValidation.js";
 
 const initialForm = {
   firstName: "",
@@ -32,19 +36,27 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [resendSeconds, setResendSeconds] = useState(0);
+  const [otpExpiresSeconds, setOtpExpiresSeconds] = useState(0);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [registration, setRegistration] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!resendSeconds) return undefined;
+    if (
+      step !== 3 ||
+      (!resendSeconds && !otpExpiresSeconds)
+    ) return undefined;
     const timer = window.setTimeout(
-      () => setResendSeconds((seconds) => Math.max(0, seconds - 1)),
+      () => {
+        setResendSeconds((seconds) => Math.max(0, seconds - 1));
+        setOtpExpiresSeconds((seconds) => Math.max(0, seconds - 1));
+      },
       1000,
     );
     return () => window.clearTimeout(timer);
-  }, [resendSeconds]);
+  }, [step, resendSeconds, otpExpiresSeconds]);
 
   useEffect(() => {
     if (!registration) return undefined;
@@ -78,6 +90,23 @@ export default function Register() {
   const selectedProgram = studyPrograms.find(
     (program) => program.name === form.program,
   );
+  const passwordChecks = getPasswordChecks(password);
+  const passwordIsStrong = isStrongPassword(password);
+  const passwordsMatch = Boolean(confirmPassword) && password === confirmPassword;
+
+  function showEmailError(requestError) {
+    setError(requestError.message);
+    setMessage("");
+    if (requestError.data?.code === "OTP_EXPIRED") {
+      setOtpExpiresSeconds(0);
+      setOtp("");
+    }
+    if (requestError.data?.code === "REGISTRATION_EXPIRED") {
+      setStep(1);
+      setChallengeId("");
+      setOtp("");
+    }
+  }
 
   async function handleDetailsSubmit(event) {
     event.preventDefault();
@@ -113,9 +142,12 @@ export default function Register() {
         body: JSON.stringify({ challengeId, password }),
       });
       setResendSeconds(result.resendAfterSeconds || 60);
+      setOtpExpiresSeconds(result.expiresInSeconds || 600);
+      setOtp("");
       setStep(3);
+      setMessage(`Verification code sent to ${form.email}. Check your inbox and spam folder.`);
     } catch (submitError) {
-      setError(submitError.message);
+      showEmailError(submitError);
     } finally {
       setBusy(false);
     }
@@ -131,8 +163,11 @@ export default function Register() {
         body: JSON.stringify({ challengeId }),
       });
       setResendSeconds(result.resendAfterSeconds || 60);
+      setOtpExpiresSeconds(result.expiresInSeconds || 600);
+      setOtp("");
+      setMessage(`A new verification code was sent to ${form.email}.`);
     } catch (resendError) {
-      setError(resendError.message);
+      showEmailError(resendError);
     } finally {
       setBusy(false);
     }
@@ -150,7 +185,7 @@ export default function Register() {
       });
       setRegistration(result);
     } catch (verifyError) {
-      setError(verifyError.message);
+      showEmailError(verifyError);
     } finally {
       setBusy(false);
     }
@@ -183,6 +218,7 @@ export default function Register() {
           ))}
         </ol>
         <Notice type="error" onClose={() => setError("")}>{error}</Notice>
+        <Notice type="success" onClose={() => setMessage("")}>{message}</Notice>
 
         {step === 1 && (
           <form className="form-stack" onSubmit={handleDetailsSubmit}>
@@ -294,28 +330,64 @@ export default function Register() {
             <p className="registration-step-note">Create a password for {form.email}.</p>
             <label className="form-field">
               <span>Password</span>
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength="8" maxLength="100" autoComplete="new-password" required />
-              <small>Use at least 8 characters.</small>
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength="8" maxLength="100" autoComplete="new-password" aria-describedby="password-requirements" required />
+              <small id="password-requirements">Password must include all of the following:</small>
+              <ul className="password-requirements">
+                {[
+                  ["length", "8 to 100 characters"],
+                  ["uppercase", "An uppercase letter"],
+                  ["lowercase", "A lowercase letter"],
+                  ["number", "A number"],
+                  ["special", "A special character"],
+                ].map(([check, label]) => (
+                  <li
+                    className={passwordChecks[check] ? "password-check-valid" : ""}
+                    key={check}
+                  >
+                    <span aria-hidden="true">{passwordChecks[check] ? "✓" : "○"}</span>
+                    {label}
+                  </li>
+                ))}
+              </ul>
+              {password && (
+                <small className={passwordIsStrong ? "password-status-valid" : "password-status-invalid"}>
+                  {passwordIsStrong ? "Strong password." : "Password is not strong enough yet."}
+                </small>
+              )}
             </label>
             <label className="form-field">
               <span>Confirm password</span>
-              <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength="8" maxLength="100" autoComplete="new-password" required />
+              <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength="8" maxLength="100" autoComplete="new-password" aria-describedby="password-match-status" required />
+              {confirmPassword && (
+                <small
+                  id="password-match-status"
+                  className={passwordsMatch ? "password-status-valid" : "password-status-invalid"}
+                  role="status"
+                >
+                  {passwordsMatch ? "Passwords match." : "Passwords do not match."}
+                </small>
+              )}
             </label>
             <div className="registration-actions">
               <button type="button" className="button button-quiet" onClick={() => setStep(1)} disabled={busy}><ChevronLeft size={16} /> Back</button>
-              <button type="submit" className="button button-primary" disabled={busy}>{busy ? "Sending code..." : "Email verification code"}</button>
+              <button type="submit" className="button button-primary" disabled={busy || !passwordIsStrong || !passwordsMatch}>{busy ? "Sending code..." : "Email verification code"}</button>
             </div>
           </form>
         )}
 
         {step === 3 && (
           <form className="form-stack" onSubmit={verifyCode}>
-            <p className="registration-step-note">Enter the six-digit code sent to <strong>{form.email}</strong>. It expires in 10 minutes.</p>
+            <p className="registration-step-note">
+              Enter the six-digit code sent to <strong>{form.email}</strong>.
+              {otpExpiresSeconds
+                ? ` Code expires in ${Math.floor(otpExpiresSeconds / 60)}:${String(otpExpiresSeconds % 60).padStart(2, "0")}.`
+                : " This code has expired. Request a new code to continue."}
+            </p>
             <label className="form-field">
               <span>Email verification code</span>
-              <input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" aria-label="Six-digit verification code" required />
+              <input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" aria-label="Six-digit verification code" disabled={!otpExpiresSeconds} required />
             </label>
-            <button type="submit" className="button button-primary button-full" disabled={busy || otp.length !== 6}>
+            <button type="submit" className="button button-primary button-full" disabled={busy || !otpExpiresSeconds || otp.length !== 6}>
               {busy ? "Verifying..." : "Verify email and create account"}
             </button>
             <div className="registration-actions">

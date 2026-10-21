@@ -202,3 +202,22 @@ test("registration validates the fixed course options and study-year limits", as
     }
   }
 });
+
+test("registration OTP endpoint rejects weak passwords", async () => {
+  const response = await fetch(`${baseUrl}/api/auth/registration/send-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      challengeId: "not-a-valid-id",
+      password: "weakpass123",
+    }),
+  });
+  const data = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.ok(
+    data.errors.some((error) =>
+      error.message.includes("uppercase, lowercase, number, and special"),
+    ),
+  );
+});

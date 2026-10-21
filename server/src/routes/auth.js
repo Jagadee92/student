@@ -22,6 +22,7 @@ import {
 } from "../utils/otp.js";
 import { runInBackground } from "../utils/runInBackground.js";
 import { getRegistrationProgram, registrationPrograms } from "../utils/academicOptions.js";
+import { isStrongPassword } from "../utils/passwordValidation.js";
 
 const router = Router();
 const registrationExpiryMs = 30 * 60 * 1000;
@@ -192,7 +193,12 @@ router.post(
   "/registration/send-otp",
   [
     body("challengeId").isMongoId(),
-    body("password").optional().isString().isLength({ min: 8, max: 100 }),
+    body("password")
+      .optional()
+      .custom(isStrongPassword)
+      .withMessage(
+        "Password must be 8 to 100 characters and include uppercase, lowercase, number, and special characters.",
+      ),
   ],
   async (req, res, next) => {
     try {
@@ -203,6 +209,7 @@ router.post(
       if (!pending || pending.expiresAt <= new Date()) {
         return res.status(410).json({
           message: "This registration expired. Please start again.",
+          code: "REGISTRATION_EXPIRED",
         });
       }
       if (
@@ -234,8 +241,9 @@ router.post(
         otp,
         process.env.JWT_SECRET,
       );
-      pending.otpExpiresAt = new Date(Date.now() + otpExpiryMs);
-      pending.otpSentAt = new Date();
+      const otpSentAt = new Date();
+      pending.otpExpiresAt = new Date(otpSentAt.getTime() + otpExpiryMs);
+      pending.otpSentAt = otpSentAt;
       pending.otpAttempts = 0;
       pending.expiresAt = new Date(Date.now() + registrationExpiryMs);
       await pending.save();
@@ -260,8 +268,16 @@ router.post(
 
       res.json({
         message: "Verification code sent to your email address.",
-        resendAfterSeconds: otpResendDelayMs / 1000,
-        expiresInSeconds: otpExpiryMs / 1000,
+        resendAfterSeconds: Math.max(
+          0,
+          Math.ceil(
+            (otpSentAt.getTime() + otpResendDelayMs - Date.now()) / 1000,
+          ),
+        ),
+        expiresInSeconds: Math.max(
+          0,
+          Math.ceil((pending.otpExpiresAt.getTime() - Date.now()) / 1000),
+        ),
       });
     } catch (error) {
       next(error);
@@ -282,6 +298,7 @@ router.post(
       if (!pending || pending.expiresAt <= new Date()) {
         return res.status(410).json({
           message: "This registration expired. Please start again.",
+          code: "REGISTRATION_EXPIRED",
         });
       }
       if (!pending.otpHash || !pending.otpExpiresAt) {
@@ -292,6 +309,7 @@ router.post(
       if (pending.otpExpiresAt <= new Date()) {
         return res.status(410).json({
           message: "This verification code expired. Request a new one.",
+          code: "OTP_EXPIRED",
         });
       }
       if (pending.otpAttempts >= otpAttemptLimit) {

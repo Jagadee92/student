@@ -42,7 +42,7 @@ for (const key of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"]) {
 const { default: app } = await import("../src/app.js");
 const databaseName = `student_management_test_${Date.now()}_${randomUUID().slice(0, 8)}`;
 const emailTag = randomUUID();
-const testPassword = "IntegrationPassphrase42";
+const testPassword = "IntegrationPassphrase42!";
 let server;
 let baseUrl;
 let admin;
