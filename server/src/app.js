@@ -14,7 +14,7 @@ import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
 const app = express();
 const allowedOrigins = String(
-  process.env.CLIENT_ORIGIN || "http://localhost:5174,https://student-1-7clo.onrender.com",
+  process.env.CLIENT_ORIGIN || "http://localhost:5174,https://website-kegu.onrender.com/",
 )
   .split(",")
   .map((origin) => origin.trim())
