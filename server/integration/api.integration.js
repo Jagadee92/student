@@ -12,6 +12,7 @@ import Student from "../src/models/Student.js";
 import Course from "../src/models/Course.js";
 import Instructor from "../src/models/Instructor.js";
 import PendingRegistration from "../src/models/PendingRegistration.js";
+import Program from "../src/models/Program.js";
 import {
   documentFolder,
   photoFolder,
@@ -91,6 +92,13 @@ before(async () => {
     Course.init(),
     Instructor.init(),
     PendingRegistration.init(),
+    Program.init(),
+  ]);
+  await Program.create([
+    { name: "B.Tech", key: "b.tech", durationYears: 4 },
+    { name: "M.Tech", key: "m.tech", durationYears: 2 },
+    { name: "Degree", key: "degree", durationYears: 3 },
+    { name: "Pharmacy", key: "pharmacy", durationYears: 6 },
   ]);
 
   const passwordHash = await bcrypt.hash(testPassword, 4);
@@ -275,8 +283,8 @@ test("student CRUD, import/export, and upload routes", async () => {
   assert.ok(filteredStudents.data.departments.includes("CSE"));
   assert.deepEqual(filteredStudents.data.degrees, [
     "B.Tech",
-    "M.Tech",
     "Degree",
+    "M.Tech",
     "Pharmacy",
   ]);
   const departmentSearch = await request(
@@ -403,6 +411,55 @@ test("course and instructor CRUD, search, and assignment safeguards", async () =
     role: "admin",
     method: "POST",
     body: { name: "Incomplete" },
+  });
+
+  test("admins manage course/program options and protect options in use", async () => {
+    const created = await request("/api/programs", {
+      role: "admin",
+      method: "POST",
+      body: { name: "Bachelor of Computer Applications", durationYears: 3 },
+    });
+    assert.equal(created.status, 201);
+    const programId = created.data.program.id;
+
+    const publicOptions = await request("/api/programs/options");
+    assert.equal(publicOptions.status, 200);
+    assert.ok(
+      publicOptions.data.items.some(
+        (program) => program.name === "Bachelor of Computer Applications",
+      ),
+    );
+
+    const duplicate = await request("/api/programs", {
+      role: "admin",
+      method: "POST",
+      body: { name: "bachelor of computer applications", durationYears: 3 },
+    });
+    assert.equal(duplicate.status, 409);
+
+    const renamed = await request(`/api/programs/${programId}`, {
+      role: "admin",
+      method: "PATCH",
+      body: { name: "BCA", durationYears: 3 },
+    });
+    assert.equal(renamed.status, 200);
+    assert.equal(renamed.data.program.name, "BCA");
+
+    assert.equal(
+      (await request(`/api/programs/${programId}`, {
+        role: "admin",
+        method: "DELETE",
+      })).status,
+      200,
+    );
+    assert.equal(
+      (await request("/api/programs", {
+        role: "staff",
+        method: "POST",
+        body: { name: "Unauthorized Program", durationYears: 3 },
+      })).status,
+      403,
+    );
   });
   assert.equal(invalidInstructor.status, 400);
 

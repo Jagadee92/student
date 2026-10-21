@@ -22,7 +22,9 @@ const courseSchema = new mongoose.Schema(
     degree: {
       type: String,
       required: true,
-      enum: ["B.Tech", "M.Tech", "Degree", "Pharmacy"],
+      trim: true,
+      minlength: 2,
+      maxlength: 120,
     },
     credits: { type: Number, required: true, min: 1, max: 30 },
     description: { type: String, trim: true, maxlength: 1000, default: "" },

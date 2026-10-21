@@ -7,6 +7,7 @@ import Notice from "../components/Notice.jsx";
 import Loading from "../components/Loading.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import Card from "../components/Card.jsx";
+import { getProgramLabel } from "../utils/academicOptions.js";
 
 const EMPTY_STATS = {
   totalStudents: 0,
@@ -98,7 +99,7 @@ export default function Dashboard() {
             <StatCard
               title="Departments"
               value={stats.departmentDistribution.length}
-              note="Department and degree groups"
+              note="Branch and course or program groups"
               icon={Activity}
               color="blue"
             />
@@ -106,8 +107,8 @@ export default function Dashboard() {
 
           <div className="dashboard-grid">
             <Card
-              title="Department and degree distribution"
-              description="Students grouped by department and degree"
+              title="Branch and course distribution"
+              description="Students grouped by branch or department and course or program"
               className="dashboard-chart"
               action={
                 <Link to="/students" className="text-link">
@@ -123,7 +124,9 @@ export default function Dashboard() {
                       key={`${item.department}-${item.degree}`}
                     >
                       <div className="bar-label">
-                        <span>{item.department} · {item.degree}</span>
+                        <span>
+                          {item.department} · {getProgramLabel(item.degree)}
+                        </span>
                         <strong>{item.count}</strong>
                       </div>
                       <div className="bar-track">
@@ -139,9 +142,9 @@ export default function Dashboard() {
               ) : (
                 <div className="empty-inline">
                   <GraduationCap size={26} />
-                  <strong>No department statistics yet</strong>
+                  <strong>No course or branch statistics yet</strong>
                   <span>
-                    Add student records with departments and degrees to see distribution.
+                    Add student records with branches and courses or programs to see distribution.
                   </span>
                 </div>
               )}
@@ -198,7 +201,7 @@ export default function Dashboard() {
                   <thead>
                     <tr>
                       <th>Student</th>
-                      <th>Department / degree</th>
+                      <th>Branch / course</th>
                       <th>Status</th>
                       <th>Registered</th>
                     </tr>
@@ -217,7 +220,7 @@ export default function Dashboard() {
                             </div>
                           </div>
                         </td>
-                        <td>{student.department} · {student.degree}</td>
+                        <td>{student.department} · {getProgramLabel(student.degree)}</td>
                         <td>
                           <StatusBadge value={student.status} />
                         </td>

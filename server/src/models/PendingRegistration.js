@@ -19,7 +19,8 @@ const pendingRegistrationSchema = new mongoose.Schema(
     program: {
       type: String,
       required: true,
-      enum: ["B.Tech", "M.Tech", "Degree", "Pharmacy"],
+      trim: true,
+      maxlength: 120,
     },
     branch: { type: String, required: true, trim: true, maxlength: 80 },
     yearOfStudy: { type: Number, required: true, min: 1, max: 6 },

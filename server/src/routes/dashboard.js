@@ -14,7 +14,7 @@ router.get("/", async (_req, res, next) => {
       departmentGroups,
     ] = await Promise.all([
       Student.countDocuments(),
-      Student.find().sort({ createdAt: -1 }).limit(6),
+      Student.find().sort({ createdAt: -1 }).limit(6).lean(),
       Student.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } },
         { $sort: { _id: 1 } },

@@ -8,6 +8,7 @@ import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { Parser } from "json2csv";
 import Student from "../models/Student.js";
+import Program from "../models/Program.js";
 import {
   requireAuth,
   requireAdmin,
@@ -44,7 +45,6 @@ const commonDepartments = [
   "Chemical",
   "Biotechnology",
   "Agriculture",
-  "Pharmacy",
 ];
 const studentExportFields = [
   "name",
@@ -221,9 +221,11 @@ function checkStudent(body, { partial = false } = {}) {
   }
   if (
     body.degree !== undefined &&
-    !["B.Tech", "M.Tech", "Degree", "Pharmacy"].includes(body.degree)
+    (typeof body.degree !== "string" ||
+      body.degree.trim().length < 2 ||
+      body.degree.trim().length > 120)
   ) {
-    return "Choose a valid degree.";
+    return "Course or program name must contain 2 to 120 characters.";
   }
   if (
     body.rollNumber !== undefined &&
@@ -297,14 +299,20 @@ router.get("/", async (req, res, next) => {
     if (options.degree) filter.degree = options.degree;
     if (options.gender) filter.gender = options.gender;
 
-    const [students, total, departments] = await Promise.all([
-      Student.find(filter)
-        .sort({ [options.sortBy]: options.sortOrder === "asc" ? 1 : -1 })
-        .skip((options.page - 1) * options.limit)
-        .limit(options.limit),
-      Student.countDocuments(filter),
-      Student.distinct("department", { department: { $type: "string", $ne: "" } }),
-    ]);
+    const [students, total, departments, programs, existingDegrees] =
+      await Promise.all([
+        Student.find(filter)
+          .sort({ [options.sortBy]: options.sortOrder === "asc" ? 1 : -1 })
+          .skip((options.page - 1) * options.limit)
+          .limit(options.limit)
+          .lean(),
+        Student.countDocuments(filter),
+        Student.distinct("department", {
+          department: { $type: "string", $ne: "" },
+        }),
+        Program.find().select("name durationYears").sort({ name: 1 }).lean(),
+        Student.distinct("degree", { degree: { $type: "string", $ne: "" } }),
+      ]);
 
     res.json({
       items: students.map(formatStudent),
@@ -312,7 +320,17 @@ router.get("/", async (req, res, next) => {
       departments: [...new Set([...commonDepartments, ...departments])].sort(
         (left, right) => left.localeCompare(right),
       ),
-      degrees: ["B.Tech", "M.Tech", "Degree", "Pharmacy"],
+      degrees: [
+        ...new Set([
+          ...programs.map((program) => program.name),
+          ...existingDegrees,
+        ]),
+      ].sort((left, right) => left.localeCompare(right)),
+      programs: programs.map((program) => ({
+        id: String(program._id),
+        name: program.name,
+        durationYears: program.durationYears,
+      })),
       page: options.page,
       limit: options.limit,
       pages: Math.max(1, Math.ceil(total / options.limit)),
@@ -521,6 +539,9 @@ router.post(
 
       const inserted = [];
       const errors = [];
+      const programKeys = new Set(
+        (await Program.find().select("key").lean()).map((program) => program.key),
+      );
       for (let index = 0; index < rows.length; index += 1) {
         const normalized = Object.fromEntries(
           Object.entries(rows[index]).map(([key, value]) => [
@@ -546,6 +567,13 @@ router.post(
         const message = checkStudent(rowData);
         if (message) {
           errors.push({ row: index + 2, reason: message });
+          continue;
+        }
+        if (!programKeys.has(rowData.degree.trim().toLowerCase())) {
+          errors.push({
+            row: index + 2,
+            reason: "Choose a course or program from the college catalog.",
+          });
           continue;
         }
         try {
@@ -590,6 +618,14 @@ router.post("/", requireStaffOrAdmin, async (req, res, next) => {
   try {
     const message = checkStudent(req.body);
     if (message) return res.status(400).json({ message });
+    const programExists = await Program.exists({
+      key: req.body.degree.trim().toLowerCase(),
+    });
+    if (!programExists) {
+      return res.status(400).json({
+        message: "Choose a course or program from the college catalog.",
+      });
+    }
 
     const student = await Student.create({
       name: req.body.name.trim(),
@@ -629,6 +665,15 @@ router.patch("/:id", requireStaffOrAdmin, async (req, res, next) => {
     const student = await Student.findById(req.params.id);
     if (!student)
       return res.status(404).json({ message: "Student not found." });
+    if (
+      req.body.degree !== undefined &&
+      req.body.degree.trim().toLowerCase() !== student.degree?.trim().toLowerCase() &&
+      !(await Program.exists({ key: req.body.degree.trim().toLowerCase() }))
+    ) {
+      return res.status(400).json({
+        message: "Choose a course or program from the college catalog.",
+      });
+    }
 
     if (req.body.name !== undefined) student.name = req.body.name.trim();
     if (req.body.email !== undefined)

@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, UserRound } from "lucide-react";
 import { api } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
 import PageHeader from "../components/PageHeader.jsx";
 import FormField from "../components/FormField.jsx";
 import Loading from "../components/Loading.jsx";
 import Modal from "../components/Modal.jsx";
 import Notice from "../components/Notice.jsx";
+import ListPagination from "../components/ListPagination.jsx";
+import { paginateItems } from "../utils/pagination.js";
 
 const EMPTY_FORM = {
   name: "",
@@ -22,6 +25,8 @@ export default function Instructors() {
   const isAdmin = user?.role === "admin";
   const [instructors, setInstructors] = useState([]);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingInstructor, setEditingInstructor] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -29,12 +34,15 @@ export default function Instructors() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const pagination = paginateItems(instructors, page);
 
   async function loadInstructors() {
     setLoading(true);
     try {
       const parameters = new URLSearchParams();
-      if (search.trim()) parameters.set("search", search.trim());
+      if (debouncedSearch.trim()) {
+        parameters.set("search", debouncedSearch.trim());
+      }
       const data = await api(`/instructors?${parameters.toString()}`);
       setInstructors(data.items || []);
       setError("");
@@ -46,8 +54,9 @@ export default function Instructors() {
   }
 
   useEffect(() => {
+    setPage(1);
     loadInstructors();
-  }, [search]);
+  }, [debouncedSearch]);
 
   function openCreateForm() {
     setEditingInstructor(null);
@@ -169,7 +178,7 @@ export default function Instructors() {
                 </tr>
               </thead>
               <tbody>
-                {instructors.map((instructor) => (
+                {pagination.items.map((instructor) => (
                   <tr key={instructor.id}>
                     <td>
                       <div className="student-cell">
@@ -229,6 +238,7 @@ export default function Instructors() {
             </table>
           </div>
         )}
+        <ListPagination pagination={pagination} onPageChange={setPage} />
       </section>
 
       {showForm && (

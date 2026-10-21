@@ -16,7 +16,7 @@ export default function Privacy() {
           <h2>Information stored</h2>
           <p>
             The application may store student names, email addresses, mobile
-            numbers, gender, address, department and degree details, uploaded photos,
+            numbers, gender, address, branch and course or program details, uploaded photos,
             and supporting documents. User accounts store a name, email address,
             role, and a password hash.
           </p>

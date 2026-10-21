@@ -5,6 +5,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { body, validationResult } from "express-validator";
 import User from "../models/User.js";
 import PendingRegistration from "../models/PendingRegistration.js";
+import Program from "../models/Program.js";
 import { requireAuth } from "../middleware/auth.js";
 import {
   sendFailedLoginEmail,
@@ -20,15 +21,9 @@ import {
   hashOtp,
   verifyOtp,
 } from "../utils/otp.js";
+import { runInBackground } from "../utils/runInBackground.js";
 
 const router = Router();
-const registrationPrograms = ["B.Tech", "M.Tech", "Degree", "Pharmacy"];
-const registrationDurations = {
-  "B.Tech": 4,
-  "M.Tech": 2,
-  Degree: 3,
-  Pharmacy: 6,
-};
 const registrationExpiryMs = 30 * 60 * 1000;
 const otpExpiryMs = 10 * 60 * 1000;
 const otpResendDelayMs = 60 * 1000;
@@ -100,8 +95,10 @@ const registrationDetailsRules = [
     .custom(isValidPhone)
     .withMessage("Enter a valid phone number with 10 to 15 digits."),
   body("program")
-    .isIn(registrationPrograms)
-    .withMessage("Choose a valid program."),
+    .isString()
+    .trim()
+    .isLength({ min: 2, max: 120 })
+    .withMessage("Choose a valid course or program."),
   body("branch")
     .isString()
     .trim()
@@ -128,9 +125,17 @@ router.post("/registration/start", registrationDetailsRules, async (req, res, ne
       gender,
       phone,
       address,
-      program,
+      program: requestedProgram,
       branch,
     } = req.body;
+    const program = await Program.findOne({
+      key: requestedProgram.trim().toLowerCase(),
+    });
+    if (!program) {
+      return res.status(400).json({
+        message: "Choose a course or program offered by the college.",
+      });
+    }
     if (`${firstName.trim()} ${lastName.trim()}`.length > 100) {
       return res.status(400).json({
         message: "First and last name together must be 100 characters or fewer.",
@@ -138,9 +143,9 @@ router.post("/registration/start", registrationDetailsRules, async (req, res, ne
     }
     const yearOfStudy = Number(req.body.yearOfStudy);
     const passingOutYear = Number(req.body.passingOutYear);
-    if (yearOfStudy > registrationDurations[program]) {
+    if (yearOfStudy > program.durationYears) {
       return res.status(400).json({
-        message: `Year of study must be between 1 and ${registrationDurations[program]} for ${program}.`,
+        message: `Year of study must be between 1 and ${program.durationYears} for ${program.name}.`,
       });
     }
     if (await User.exists({ email: cleanEmail(email) })) {
@@ -164,7 +169,7 @@ router.post("/registration/start", registrationDetailsRules, async (req, res, ne
     pending.gender = gender;
     pending.phone = phone.trim();
     pending.address = address.trim();
-    pending.program = program;
+    pending.program = program.name;
     pending.branch = branch.trim();
     pending.yearOfStudy = yearOfStudy;
     pending.passingOutYear = passingOutYear;
@@ -368,28 +373,35 @@ router.post(
 
       const user = await User.findOne({
         email: cleanEmail(req.body.email),
-      }).select("+passwordHash");
+      })
+        .select("+passwordHash")
+        .lean();
       const passwordMatches =
         user && (await bcrypt.compare(req.body.password, user.passwordHash));
 
       if (!passwordMatches) {
-        if (user) await sendFailedLoginEmail(user);
+        if (user) {
+          runInBackground(
+            () => sendFailedLoginEmail(user),
+            "Failed login notification",
+          );
+        }
         return res
           .status(401)
           .json({ message: "Email or password is incorrect." });
       }
 
-      await sendLoginEmail(user);
       res.json({ token: makeToken(user), user: getPublicUser(user) });
+      runInBackground(() => sendLoginEmail(user), "Login notification");
     } catch (error) {
       next(error);
     }
   },
 );
 
-router.post("/logout", requireAuth, async (req, res) => {
-  await sendLogoutEmail(req.user);
+router.post("/logout", requireAuth, (req, res) => {
   res.json({ message: "You have been signed out." });
+  runInBackground(() => sendLogoutEmail(req.user), "Logout notification");
 });
 
 router.get("/me", requireAuth, (req, res) => {

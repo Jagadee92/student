@@ -18,6 +18,10 @@ export default function Navbar() {
   if (user?.role === "admin")
     appLinks.push({ to: "/students", label: "Students" });
   if (user?.role === "admin") appLinks.push({ to: "/users", label: "Users" });
+  if (user?.role === "admin")
+    appLinks.push({ to: "/programs", label: "Programs" });
+  if (user?.role === "admin")
+    appLinks.push({ to: "/register", label: "Create account" });
   if (user) appLinks.push({ to: "/courses", label: "Courses" });
   if (user) appLinks.push({ to: "/instructors", label: "Instructors" });
   if (user) appLinks.push({ to: "/profile", label: "My profile" });

@@ -43,6 +43,13 @@ test("accepts supported page sizes, filters, and sort options", () => {
   assert.equal(options.sortOrder, "asc");
 });
 
+test("accepts a custom course or program filter", () => {
+  assert.equal(
+    getStudentOptions({ degree: "Bachelor of Computer Applications" }).degree,
+    "Bachelor of Computer Applications",
+  );
+});
+
 test("rejects bad page sizes and unsafe sort fields", () => {
   assert.throws(() => getStudentOptions({ limit: "1000" }), {
     status: 400,
@@ -52,9 +59,6 @@ test("rejects bad page sizes and unsafe sort fields", () => {
   });
   assert.throws(() => getStudentOptions({ page: "0" }), { status: 400 });
   assert.throws(() => getStudentOptions({ gender: "not-a-gender" }), {
-    status: 400,
-  });
-  assert.throws(() => getStudentOptions({ degree: "not-a-degree" }), {
     status: 400,
   });
 });

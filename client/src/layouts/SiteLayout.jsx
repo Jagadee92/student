@@ -10,6 +10,7 @@ export default function SiteLayout() {
     "users",
     "courses",
     "instructors",
+    "programs",
     "profile",
   ]);
   const pageTransition = animatedSections.has(section) ? section : "default";

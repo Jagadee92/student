@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LockKeyhole, LogIn } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { api } from "../services/api.js";
 import Notice from "../components/Notice.jsx";
 import FormField from "../components/FormField.jsx";
 import { getLoginPath } from "../utils/loginPath.js";
@@ -12,11 +13,53 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [apiReady, setApiReady] = useState(false);
+  const [checkingApi, setCheckingApi] = useState(true);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    const timeoutId = window.setTimeout(() => controller.abort(), 60000);
+
+    setCheckingApi(true);
+    setApiReady(false);
+    setError("");
+    api("/health", { auth: false, signal: controller.signal })
+      .then((data) => {
+        if (data.status !== "ok") {
+          throw new Error("The server is starting. Please retry in a moment.");
+        }
+        if (active) setApiReady(true);
+      })
+      .catch((connectionError) => {
+        if (!active) return;
+        setError(
+          connectionError.name === "AbortError"
+            ? "The server is taking too long to start. Select Retry connection."
+            : connectionError.message,
+        );
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId);
+        if (active) setCheckingApi(false);
+      });
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [connectionAttempt]);
+
   async function handleSubmit(event) {
     event.preventDefault();
+    if (!apiReady) {
+      setError("Wait for the server connection before signing in.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -45,6 +88,20 @@ export default function Login() {
         </p>
         <Notice type="success">{location.state?.successMessage}</Notice>
         <Notice type="error">{error}</Notice>
+        {checkingApi && (
+          <p className="auth-subtitle" role="status">
+            Connecting to the sign-in server...
+          </p>
+        )}
+        {!checkingApi && !apiReady && (
+          <button
+            type="button"
+            className="button button-quiet button-full"
+            onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
+          >
+            Retry connection
+          </button>
+        )}
         <form className="form-stack" onSubmit={handleSubmit}>
           <FormField
             label="Email address"
@@ -69,7 +126,7 @@ export default function Login() {
           <button
             type="submit"
             className="button button-primary button-full"
-            disabled={busy}
+            disabled={busy || checkingApi || !apiReady}
           >
             {busy ? (
               "Signing in..."

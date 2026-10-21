@@ -2545,6 +2545,59 @@ td > strong {
   object-fit: contain;
 }
 
+.container {
+  width: calc(100% - clamp(28px, 5vw, 72px));
+  max-width: none;
+}
+
+body {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.nav-links a,
+.nav-user,
+.button {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.button-small {
+  font-size: 13px;
+}
+
+.page-description,
+.auth-subtitle,
+.auth-switch,
+.form-field > span,
+.form-field input,
+.form-field select,
+.form-field textarea,
+.form-options a {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.form-field small,
+.form-help,
+.auth-note,
+.registration-steps li {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.table-wrap table,
+.detail-list,
+.profile-academic-grid {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.registration-card {
+  width: min(100%, 1080px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

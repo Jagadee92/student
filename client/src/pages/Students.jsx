@@ -16,11 +16,16 @@ import {
 } from "lucide-react";
 import { api, downloadFile } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Notice from "../components/Notice.jsx";
 import Loading from "../components/Loading.jsx";
 import Modal from "../components/Modal.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
+import {
+  commonBranches,
+  getProgramLabel,
+} from "../utils/academicOptions.js";
 
 const EMPTY_FORM = {
   name: "",
@@ -66,11 +71,14 @@ export default function Students() {
 
   const [students, setStudents] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [degrees, setDegrees] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [department, setDepartment] = useState("");
   const [degree, setDegree] = useState("");
   const [gender, setGender] = useState("");
@@ -125,7 +133,7 @@ export default function Students() {
       const parameters = new URLSearchParams({
         page: String(page),
         limit: String(limit),
-        search,
+        search: debouncedSearch,
         sortBy,
         sortOrder,
       });
@@ -138,6 +146,8 @@ export default function Students() {
         if (active) {
           setStudents(data.items || []);
           setDepartments(data.departments || []);
+          setDegrees(data.degrees || []);
+          setPrograms(data.programs || []);
           setTotal(data.total || 0);
           setPages(data.pages || 1);
         }
@@ -154,7 +164,7 @@ export default function Students() {
   }, [
     page,
     limit,
-    search,
+    debouncedSearch,
     department,
     degree,
     gender,
@@ -427,7 +437,7 @@ export default function Students() {
       <PageHeader
         eyebrow="STUDENT DIRECTORY"
         title="Students"
-        description="Search and manage college student profiles by department and degree."
+        description="Search and manage college student profiles by branch and course or program."
         action={
           <div className="header-action-group">
             <div className="download-control" ref={downloadMenuRef}>
@@ -536,12 +546,12 @@ export default function Students() {
                 setSearch(event.target.value);
                 setPage(1);
               }}
-              placeholder="Search name, email, roll number, or department"
-              aria-label="Search name, email, roll number, or department"
+              placeholder="Search name, email, roll number, or branch"
+              aria-label="Search name, email, roll number, or branch"
             />
           </label>
           <label className="form-field compact-field">
-            <span>Department</span>
+            <span>Branch / department</span>
             <select
               value={department}
               onChange={(event) => {
@@ -549,7 +559,7 @@ export default function Students() {
                 setPage(1);
               }}
             >
-              <option value="">All departments</option>
+              <option value="">All branches / departments</option>
               {departments.map((item) => (
                 <option value={item} key={item}>
                   {item}
@@ -558,7 +568,7 @@ export default function Students() {
             </select>
           </label>
           <label className="form-field compact-field">
-            <span>Degree</span>
+            <span>Course / program</span>
             <select
               value={degree}
               onChange={(event) => {
@@ -566,11 +576,12 @@ export default function Students() {
                 setPage(1);
               }}
             >
-              <option value="">All degrees</option>
-              <option value="B.Tech">B.Tech</option>
-              <option value="M.Tech">M.Tech</option>
-              <option value="Degree">Degree</option>
-              <option value="Pharmacy">Pharmacy</option>
+              <option value="">All courses / programs</option>
+              {degrees.map((programName) => (
+                <option key={programName} value={programName}>
+                  {getProgramLabel(programName)}
+                </option>
+              ))}
             </select>
           </label>
           <label className="form-field compact-field">
@@ -628,8 +639,8 @@ export default function Students() {
               />
             </label>
             <span>
-              Import student records with department, degree, and college roll
-              number from CSV or Excel. PDF is available for reports.
+              Import student records with branch, course or program, and college
+              roll number from CSV or Excel. PDF is available for reports.
             </span>
           </div>
         )}
@@ -695,7 +706,7 @@ export default function Students() {
                     </th>
                     <th>Student</th>
                     <th>Mobile</th>
-                    <th>Department / degree</th>
+                    <th>Branch / course</th>
                     <th>Gender</th>
                     <th>Status</th>
                     <th>Files</th>
@@ -737,7 +748,7 @@ export default function Students() {
                       <td>
                         {student.department || "-"}
                         <small className="table-subtext">
-                          {student.degree || ""}
+                          {getProgramLabel(student.degree || "")}
                         </small>
                       </td>
                       <td>{student.gender}</td>
@@ -992,36 +1003,47 @@ export default function Students() {
                 </select>
               </label>
               <label className="form-field">
-                <span>Department *</span>
+                <span>Branch / department *</span>
                 <input
                   name="department"
                   value={form.department}
                   onChange={handleFormChange}
                   list="student-departments"
                   maxLength="100"
-                  placeholder="e.g. Computer Science and Engineering"
+                  placeholder="e.g. CSE, ECE, or Civil"
                   required
                 />
                 <datalist id="student-departments">
+                  {commonBranches.map((branch) => (
+                    <option value={branch} key={branch} />
+                  ))}
                   {departments.map((item) => (
                     <option value={item} key={item} />
                   ))}
                 </datalist>
               </label>
               <label className="form-field">
-                <span>Degree *</span>
+                <span>Course / program *</span>
                 <select
                   name="degree"
                   value={form.degree}
                   onChange={handleFormChange}
+                  disabled={!programs.length && !form.degree}
                   required
                 >
-                  <option value="">Select degree</option>
-                  <option value="B.Tech">B.Tech</option>
-                  <option value="M.Tech">M.Tech</option>
-                  <option value="Degree">Degree</option>
-                  <option value="Pharmacy">Pharmacy</option>
+                  <option value="">Select course / program</option>
+                  {form.degree && !programs.some((program) => program.name === form.degree) && (
+                    <option value={form.degree}>{form.degree}</option>
+                  )}
+                  {programs.map((program) => (
+                    <option key={program.id} value={program.name}>
+                      {program.name}
+                    </option>
+                  ))}
                 </select>
+                {!programs.length && !form.degree && (
+                  <small>Add a course or program from the Programs page first.</small>
+                )}
               </label>
               <label className="form-field">
                 <span>College roll number *</span>
@@ -1121,12 +1143,12 @@ export default function Students() {
               <strong>{detailsStudent.gender}</strong>
             </div>
             <div>
-              <span>Department</span>
+              <span>Branch / department</span>
               <strong>{detailsStudent.department || "-"}</strong>
             </div>
             <div>
-              <span>Degree</span>
-              <strong>{detailsStudent.degree || "-"}</strong>
+              <span>Course / program</span>
+              <strong>{getProgramLabel(detailsStudent.degree || "-")}</strong>
             </div>
             <div>
               <span>Status</span>

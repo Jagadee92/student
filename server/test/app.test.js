@@ -36,6 +36,20 @@ test("API root explains that the server is running", async () => {
   assert.equal(data.health, "/api/health");
 });
 
+test("CORS preflight responses are cacheable to avoid repeated browser round trips", async () => {
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "http://localhost:5174",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type",
+    },
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-max-age"), "86400");
+});
+
 test("student endpoints require authentication", async () => {
   const response = await fetch(`${baseUrl}/api/students`);
   const data = await response.json();
@@ -45,7 +59,7 @@ test("student endpoints require authentication", async () => {
 });
 
 test("academic catalog routes require authentication", async () => {
-  for (const route of ["/api/courses", "/api/instructors"]) {
+  for (const route of ["/api/courses", "/api/instructors", "/api/programs"]) {
     const response = await fetch(`${baseUrl}${route}`);
     assert.equal(response.status, 401);
   }

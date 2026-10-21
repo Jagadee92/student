@@ -2,17 +2,24 @@ import { useEffect, useState } from "react";
 import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { api } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
 import PageHeader from "../components/PageHeader.jsx";
 import FormField from "../components/FormField.jsx";
 import Loading from "../components/Loading.jsx";
 import Modal from "../components/Modal.jsx";
 import Notice from "../components/Notice.jsx";
+import ListPagination from "../components/ListPagination.jsx";
+import {
+  commonBranches,
+  getProgramLabel,
+} from "../utils/academicOptions.js";
+import { paginateItems } from "../utils/pagination.js";
 
 const EMPTY_FORM = {
   code: "",
   name: "",
   department: "",
-  degree: "B.Tech",
+  degree: "",
   credits: "3",
   description: "",
   instructorId: "",
@@ -23,7 +30,10 @@ export default function Courses() {
   const isAdmin = user?.role === "admin";
   const [courses, setCourses] = useState([]);
   const [instructors, setInstructors] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingCourse, setEditingCourse] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -31,33 +41,50 @@ export default function Courses() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const pagination = paginateItems(courses, page);
 
-  async function loadData() {
+  async function loadCourses() {
     setLoading(true);
     try {
       const parameters = new URLSearchParams();
-      if (search.trim()) parameters.set("search", search.trim());
-      const [courseData, instructorData] = await Promise.all([
-        api(`/courses?${parameters.toString()}`),
-        api("/instructors"),
-      ]);
+      if (debouncedSearch.trim()) {
+        parameters.set("search", debouncedSearch.trim());
+      }
+      const courseData = await api(`/courses?${parameters.toString()}`);
       setCourses(courseData.items || []);
-      setInstructors(instructorData.items || []);
       setError("");
-    } catch (loadError) {
-      setError(loadError.message);
+    } catch (requestError) {
+      setError(requestError.message);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData();
-  }, [search]);
+    setPage(1);
+    loadCourses();
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([api("/instructors"), api("/programs/options", { auth: false })])
+      .then(([instructorData, programData]) => {
+        if (active) {
+          setInstructors(instructorData.items || []);
+          setPrograms(programData.items || []);
+        }
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function openCreateForm() {
     setEditingCourse(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, degree: programs[0]?.name || "" });
     setShowForm(true);
   }
 
@@ -92,7 +119,7 @@ export default function Courses() {
       });
       setShowForm(false);
       setMessage(editingCourse ? "Course updated." : "Course created.");
-      await loadData();
+      await loadCourses();
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -107,7 +134,7 @@ export default function Courses() {
     try {
       await api(`/courses/${course.id}`, { method: "DELETE" });
       setMessage("Course deleted.");
-      await loadData();
+      await loadCourses();
     } catch (deleteError) {
       setError(deleteError.message);
     }
@@ -120,7 +147,7 @@ export default function Courses() {
         title="Courses"
         description={
           isAdmin
-            ? "Manage courses offered by each department and assign instructors."
+            ? "Manage courses by branch and academic program, then assign instructors."
             : "Browse the current course catalog offered by the college."
         }
         action={
@@ -170,14 +197,14 @@ export default function Courses() {
               <thead>
                 <tr>
                   <th>Course</th>
-                  <th>Department / degree</th>
+                  <th>Branch / program</th>
                   <th>Credits</th>
                   <th>Instructor</th>
                   <th>{isAdmin ? "Actions" : "Access"}</th>
                 </tr>
               </thead>
               <tbody>
-                {courses.map((course) => (
+                {pagination.items.map((course) => (
                   <tr key={course.id}>
                     <td>
                       <div className="student-academic-cell">
@@ -185,7 +212,7 @@ export default function Courses() {
                         {course.description && <small>{course.description}</small>}
                       </div>
                     </td>
-                    <td>{course.department} · {course.degree}</td>
+                    <td>{course.department} · {getProgramLabel(course.degree)}</td>
                     <td>{course.credits}</td>
                     <td>{course.instructor?.name || "Unassigned"}</td>
                     {isAdmin ? (
@@ -231,6 +258,7 @@ export default function Courses() {
             </table>
           </div>
         )}
+        <ListPagination pagination={pagination} onPageChange={setPage} />
       </section>
 
       {showForm && (
@@ -257,22 +285,41 @@ export default function Courses() {
                 required
               />
               <FormField
-                label="Department"
+                label="Branch / department"
                 name="department"
                 value={form.department}
                 onChange={(event) => setForm({ ...form, department: event.target.value })}
+                list="course-departments"
+                placeholder="e.g. CSE, ECE, or Civil"
                 required
               />
+              <datalist id="course-departments">
+                {commonBranches.map((branch) => (
+                  <option value={branch} key={branch} />
+                ))}
+              </datalist>
               <FormField
                 as="select"
-                label="Degree"
+                label="Course / program"
                 name="degree"
                 value={form.degree}
                 onChange={(event) => setForm({ ...form, degree: event.target.value })}
+                hint={
+                  programs.length
+                    ? ""
+                    : "Add a course or program from the Programs page first."
+                }
                 required
               >
-                {["B.Tech", "M.Tech", "Degree", "Pharmacy"].map((degree) => (
-                  <option key={degree} value={degree}>{degree}</option>
+                <option value="">Select course or program</option>
+                {form.degree &&
+                  !programs.some((program) => program.name === form.degree) && (
+                    <option value={form.degree}>{form.degree}</option>
+                )}
+                {programs.map((program) => (
+                  <option key={program.id} value={program.name}>
+                    {program.name}
+                  </option>
                 ))}
               </FormField>
               <FormField

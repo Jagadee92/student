@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import SiteLayout from "./layouts/SiteLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
@@ -14,6 +15,7 @@ import Students from "./pages/Students.jsx";
 import UsersPage from "./pages/Users.jsx";
 import Courses from "./pages/Courses.jsx";
 import Instructors from "./pages/Instructors.jsx";
+import Programs from "./pages/Programs.jsx";
 import Profile from "./pages/Profile.jsx";
 import Forbidden from "./pages/Forbidden.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -26,6 +28,20 @@ function SignedInRedirect() {
 }
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const handledInitialNavigation = useRef(false);
+
+  useEffect(() => {
+    if (handledInitialNavigation.current) return;
+    handledInitialNavigation.current = true;
+
+    const navigation = window.performance.getEntriesByType("navigation")[0];
+    if (navigation?.type === "reload" && location.pathname !== "/") {
+      navigate("/", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
   return (
     <Routes>
       <Route element={<SiteLayout />}>
@@ -47,6 +63,7 @@ export default function App() {
             <Route path="students" element={<Students />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="programs" element={<Programs />} />
           </Route>
         </Route>
 

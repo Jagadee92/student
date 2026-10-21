@@ -19,13 +19,13 @@ const features = [
   },
   {
     icon: Building2,
-    title: "Departments and degrees",
-    text: "Organize and search student records by department, degree, and roll number.",
+    title: "Branches and courses",
+    text: "Organize and search student records by branch, course or program, and roll number.",
   },
   {
     icon: BarChart3,
     title: "Useful reports",
-    text: "View actual student totals, recent enrolments, and department distribution.",
+    text: "View actual student totals, recent enrolments, and branch and course distribution.",
   },
   {
     icon: ShieldCheck,
@@ -76,6 +76,16 @@ export default function Home() {
                       size="large"
                     >
                       Manage students
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      as={Link}
+                      to="/register"
+                      variant="outline"
+                      size="large"
+                    >
+                      Create student account
                     </Button>
                   )}
                 </>

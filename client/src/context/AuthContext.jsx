@@ -32,17 +32,21 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
-  async function logout() {
-    try {
-      if (sessionStorage.getItem("token")) {
-        await api("/auth/logout", { method: "POST" });
-      }
-    } catch {
-    } finally {
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
-      setUser(null);
+  function logout() {
+    const token = sessionStorage.getItem("token");
+    if (token) {
+      void api("/auth/logout", {
+        method: "POST",
+        auth: false,
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((error) => {
+        console.warn("Could not send the logout notification:", error.message);
+      });
     }
+
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+    setUser(null);
   }
 
   function saveUser(updatedUser) {

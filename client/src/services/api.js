@@ -1,5 +1,6 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "/api";
+import { getApiBaseUrl } from "../utils/apiBaseUrl.js";
+
+const API_BASE_URL = getApiBaseUrl(import.meta.env.VITE_API_URL);
 
 export async function api(path, options = {}) {
   const { auth = true, headers: customHeaders = {}, ...fetchOptions } = options;

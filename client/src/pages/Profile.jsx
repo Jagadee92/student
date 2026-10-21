@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import Notice from "../components/Notice.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
+import { getProgramLabel } from "../utils/academicOptions.js";
 
 export default function Profile() {
   const { user, saveUser } = useAuth();
@@ -148,7 +149,7 @@ export default function Profile() {
               <dl className="profile-academic-grid">
                 <div><dt>College roll number</dt><dd>{user.studentProfile.rollNumber}</dd></div>
                 <div><dt>Gender</dt><dd>{user.studentProfile.gender || "Not provided"}</dd></div>
-                <div><dt>Program</dt><dd>{user.studentProfile.program}</dd></div>
+                <div><dt>Course / program</dt><dd>{getProgramLabel(user.studentProfile.program)}</dd></div>
                 <div><dt>Branch / department</dt><dd>{user.studentProfile.branch}</dd></div>
                 <div><dt>Year of study</dt><dd>{user.studentProfile.yearOfStudy}</dd></div>
                 <div><dt>Passing-out year</dt><dd>{user.studentProfile.passingOutYear}</dd></div>

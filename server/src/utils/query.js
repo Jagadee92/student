@@ -39,12 +39,7 @@ export function getStudentOptions(query) {
     throw error;
   }
 
-  const degree = query.degree ? String(query.degree) : "";
-  if (degree && !["B.Tech", "M.Tech", "Degree", "Pharmacy"].includes(degree)) {
-    const error = new Error("Degree filter is invalid.");
-    error.status = 400;
-    throw error;
-  }
+  const degree = String(query.degree || "").trim().slice(0, 120);
 
   return {
     page,

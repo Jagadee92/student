@@ -107,7 +107,7 @@ router.get("/", async (req, res, next) => {
           ],
         }
       : {};
-    const instructors = await Instructor.find(filter).sort({ name: 1 });
+    const instructors = await Instructor.find(filter).sort({ name: 1 }).lean();
     res.json({ items: instructors.map(formatInstructor) });
   } catch (error) {
     next(error);

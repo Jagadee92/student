@@ -9,6 +9,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import userRoutes from "./routes/users.js";
 import courseRoutes from "./routes/courses.js";
 import instructorRoutes from "./routes/instructors.js";
+import programRoutes from "./routes/programs.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
 const app = express();
@@ -26,6 +27,7 @@ app.use(
     origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    maxAge: 86400,
   }),
 );
 app.use(express.json({ limit: "1mb" }));
@@ -82,6 +84,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/instructors", instructorRoutes);
+app.use("/api/programs", programRoutes);
 
 app.use(notFound);
 app.use((error, req, res, next) => {

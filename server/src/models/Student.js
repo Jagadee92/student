@@ -26,7 +26,8 @@ const studentSchema = new mongoose.Schema(
     department: { type: String, trim: true, maxlength: 100, default: "" },
     degree: {
       type: String,
-      enum: ["B.Tech", "M.Tech", "Degree", "Pharmacy"],
+      trim: true,
+      maxlength: 120,
       default: undefined,
     },
     rollNumber: { type: String, trim: true, maxlength: 40, default: "" },
@@ -47,5 +48,6 @@ const studentSchema = new mongoose.Schema(
 studentSchema.index({ name: 1, email: 1 });
 studentSchema.index({ department: 1, degree: 1, gender: 1 });
 studentSchema.index({ rollNumber: 1 });
+studentSchema.index({ createdAt: -1 });
 
 export default mongoose.model("Student", studentSchema);

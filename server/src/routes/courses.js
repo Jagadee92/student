@@ -2,13 +2,13 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import Course from "../models/Course.js";
 import Instructor from "../models/Instructor.js";
+import Program from "../models/Program.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { escapeRegex } from "../utils/query.js";
 
 const router = Router();
 router.use(requireAuth);
 
-const degrees = ["B.Tech", "M.Tech", "Degree", "Pharmacy"];
 const fields = new Set([
   "code",
   "name",
@@ -56,8 +56,13 @@ function validateCourse(body, partial = false) {
   ) {
     return "Department must contain 2 to 100 characters.";
   }
-  if (body.degree !== undefined && !degrees.includes(body.degree)) {
-    return "Choose a valid degree.";
+  if (
+    body.degree !== undefined &&
+    (typeof body.degree !== "string" ||
+      body.degree.trim().length < 2 ||
+      body.degree.trim().length > 120)
+  ) {
+    return "Choose a course or program name containing 2 to 120 characters.";
   }
   if (
     body.credits !== undefined &&
@@ -139,7 +144,8 @@ router.get("/", async (req, res, next) => {
     if (error) return res.status(400).json({ message: error });
     const courses = await Course.find(filter)
       .populate("instructor", "name email department")
-      .sort({ code: 1 });
+      .sort({ code: 1 })
+      .lean();
     res.json({ items: courses.map(formatCourse) });
   } catch (error) {
     next(error);
@@ -166,6 +172,13 @@ router.post("/", requireAdmin, async (req, res, next) => {
   try {
     const message = validateCourse(req.body);
     if (message) return res.status(400).json({ message });
+    if (
+      !(await Program.exists({ key: req.body.degree.trim().toLowerCase() }))
+    ) {
+      return res.status(400).json({
+        message: "Choose a course or program from the college catalog.",
+      });
+    }
     const instructorId = req.body.instructorId || null;
     if (instructorId && !(await Instructor.exists({ _id: instructorId }))) {
       return res.status(404).json({ message: "Instructor not found." });
@@ -197,6 +210,15 @@ router.patch("/:id", requireAdmin, async (req, res, next) => {
 
     const course = await Course.findById(req.params.id);
     if (!course) return res.status(404).json({ message: "Course not found." });
+    if (
+      req.body.degree !== undefined &&
+      req.body.degree.trim().toLowerCase() !== course.degree.toLowerCase() &&
+      !(await Program.exists({ key: req.body.degree.trim().toLowerCase() }))
+    ) {
+      return res.status(400).json({
+        message: "Choose a course or program from the college catalog.",
+      });
+    }
     if (req.body.instructorId !== undefined) {
       const instructorId = req.body.instructorId || null;
       if (instructorId && !(await Instructor.exists({ _id: instructorId }))) {

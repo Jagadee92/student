@@ -5,12 +5,16 @@ import PageHeader from "../components/PageHeader.jsx";
 import Notice from "../components/Notice.jsx";
 import Loading from "../components/Loading.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
+import ListPagination from "../components/ListPagination.jsx";
+import { paginateItems } from "../utils/pagination.js";
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const pagination = paginateItems(users, page);
 
   async function loadUsers() {
     setLoading(true);
@@ -104,7 +108,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {pagination.items.map((user) => (
                   <tr key={user.id}>
                     <td>
                       <div className="student-cell">
@@ -183,6 +187,7 @@ export default function UsersPage() {
             </table>
           </div>
         )}
+        <ListPagination pagination={pagination} onPageChange={setPage} />
       </section>
     </div>
   );

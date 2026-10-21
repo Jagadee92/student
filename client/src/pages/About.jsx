@@ -10,8 +10,9 @@ export default function About() {
         </h1>
         <p className="lead-text">
           CampusFlow is a learning project that demonstrates how a Student
-          Management System can organize student records by department and
-          degree through a single responsive interface.
+          Management System can organize student records by branch or
+          department and by course or program through a single responsive
+          interface.
         </p>
         <div className="values-grid">
           <article className="value-card">
