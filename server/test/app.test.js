@@ -54,7 +54,7 @@ test("CORS allows the configured Render frontend", async () => {
   const response = await fetch(`${baseUrl}/api/health`, {
     method: "OPTIONS",
     headers: {
-      Origin: "https://client-9foq.onrender.com",
+      Origin: "https://client-kpqq.onrender.com",
       "Access-Control-Request-Method": "GET",
     },
   });
@@ -62,7 +62,7 @@ test("CORS allows the configured Render frontend", async () => {
   assert.equal(response.status, 204);
   assert.equal(
     response.headers.get("access-control-allow-origin"),
-    "https://client-9foq.onrender.com",
+    "https://client-kpqq.onrender.com",
   );
 });
 

@@ -9,15 +9,15 @@ test("uses the same-origin API path when no URL is configured", () => {
 
 test("adds the API path to a backend origin", () => {
   assert.equal(
-    getApiBaseUrl("https://student-33hi.onrender.com"),
-    "https://student-33hi.onrender.com/api",
+    getApiBaseUrl("https://server-7a1u.onrender.com"),
+    "https://server-7a1u.onrender.com/api",
   );
 });
 
 test("does not duplicate an existing API path", () => {
   assert.equal(getApiBaseUrl("/api/"), "/api");
   assert.equal(
-    getApiBaseUrl("https://student-33hi.onrender.com/api/"),
-    "https://student-33hi.onrender.com/api",
+    getApiBaseUrl("https://server-7a1u.onrender.com/api/"),
+    "https://server-7a1u.onrender.com/api",
   );
 });

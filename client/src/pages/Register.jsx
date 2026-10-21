@@ -415,7 +415,7 @@ export default function Register() {
               <input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" aria-label="Six-digit verification code" disabled={otpStatus !== "sent" || !otpExpiresSeconds} required />
             </label>
             <button type="submit" className="button button-primary button-full" disabled={busy || otpStatus !== "sent" || !otpExpiresSeconds || otp.length !== 6}>
-              {busy ? "Verifying..." : "Verify email and create account"}
+              {busy ? "Submitting..." : "Submit"}
             </button>
             <div className="registration-actions">
               <button type="button" className="button button-quiet" onClick={() => { setStep(1); setError(""); }} disabled={busy}><ChevronLeft size={16} /> Change details</button>

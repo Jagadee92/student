@@ -262,7 +262,8 @@ router.post(
         await pending.save();
         return res.status(503).json({
           message:
-            "We could not send the verification code. Check the server SMTP settings and try again.",
+            "Email delivery failed. The backend needs valid SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and EMAIL_FROM settings. Ask the administrator to check the backend mail logs, then retry.",
+          code: "EMAIL_DELIVERY_FAILED",
         });
       }
 

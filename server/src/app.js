@@ -16,8 +16,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5174",
   "https://localhost:5174",
-  "https://client-9foq.onrender.com",
-  "https://student-1-7clo.onrender.com",
+  "https://client-kpqq.onrender.com",
   ...String(process.env.CLIENT_ORIGIN || "")
     .split(",")
     .map((origin) => origin.trim())
