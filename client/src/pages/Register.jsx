@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle2, ChevronLeft, ChevronRight, UserRoundPlus } from "lucide-react";
 import { api } from "../services/api.js";
@@ -31,44 +31,12 @@ const initialForm = {
 export default function Register() {
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(1);
-  const [challengeId, setChallengeId] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [resendSeconds, setResendSeconds] = useState(0);
-  const [otpExpiresSeconds, setOtpExpiresSeconds] = useState(0);
-  const [otpStatus, setOtpStatus] = useState("idle");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [registration, setRegistration] = useState(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (
-      step !== 3 ||
-      (!resendSeconds && !otpExpiresSeconds)
-    ) return undefined;
-    const timer = window.setTimeout(
-      () => {
-        setResendSeconds((seconds) => Math.max(0, seconds - 1));
-        setOtpExpiresSeconds((seconds) => Math.max(0, seconds - 1));
-      },
-      1000,
-    );
-    return () => window.clearTimeout(timer);
-  }, [step, resendSeconds, otpExpiresSeconds]);
-
-  useEffect(() => {
-    if (!registration) return undefined;
-    const timer = window.setTimeout(() => {
-      navigate("/login", {
-        replace: true,
-        state: { successMessage: "Your student account is ready. Sign in to continue." },
-      });
-    }, 4000);
-    return () => window.clearTimeout(timer);
-  }, [registration, navigate]);
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -95,48 +63,15 @@ export default function Register() {
   const passwordIsStrong = isStrongPassword(password);
   const passwordsMatch = Boolean(confirmPassword) && password === confirmPassword;
 
-  function showEmailError(requestError) {
-    setError(requestError.message);
-    setMessage("");
-    if (requestError.status === 429 && requestError.data?.retryAfterSeconds) {
-      setResendSeconds(requestError.data.retryAfterSeconds);
-    }
-    if (requestError.data?.code === "OTP_EXPIRED") {
-      setOtpExpiresSeconds(0);
-      setOtpStatus("expired");
-      setOtp("");
-    }
-    if (requestError.data?.code === "REGISTRATION_EXPIRED") {
-      setStep(1);
-      setChallengeId("");
-      setOtp("");
-      setOtpStatus("idle");
-    }
-  }
-
-  async function handleDetailsSubmit(event) {
+  function handleDetailsSubmit(event) {
     event.preventDefault();
     setError("");
-    setBusy(true);
-    try {
-      const result = await api("/auth/registration/start", {
-        method: "POST",
-        auth: false,
-        body: JSON.stringify(form),
-      });
-      setChallengeId(result.challengeId);
-      setStep(2);
-    } catch (submitError) {
-      setError(submitError.message);
-    } finally {
-      setBusy(false);
-    }
+    setStep(2);
   }
 
   async function handlePasswordSubmit(event) {
     event.preventDefault();
     setError("");
-    setMessage("");
     if (password !== confirmPassword) {
       setError("The passwords do not match.");
       return;
@@ -148,68 +83,16 @@ export default function Register() {
       return;
     }
 
-    setStep(3);
-    setOtpStatus("sending");
-    setOtpExpiresSeconds(0);
-    setOtp("");
-    setMessage(`Sending a verification code to ${form.email}...`);
     setBusy(true);
     try {
-      const result = await api("/auth/registration/send-otp", {
+      const result = await api("/auth/register", {
         method: "POST",
         auth: false,
-        body: JSON.stringify({ challengeId, password }),
-      });
-      setResendSeconds(result.resendAfterSeconds || 60);
-      setOtpExpiresSeconds(result.expiresInSeconds || 600);
-      setOtp("");
-      setOtpStatus("sent");
-      setMessage(`Verification code sent to ${form.email}. Check your inbox and spam folder.`);
-    } catch (submitError) {
-      setOtpStatus("failed");
-      showEmailError(submitError);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function resendCode() {
-    setError("");
-    setMessage(`Sending a verification code to ${form.email}...`);
-    setOtpStatus("sending");
-    setBusy(true);
-    try {
-      const result = await api("/auth/registration/send-otp", {
-        method: "POST",
-        auth: false,
-        body: JSON.stringify({ challengeId }),
-      });
-      setResendSeconds(result.resendAfterSeconds || 60);
-      setOtpExpiresSeconds(result.expiresInSeconds || 600);
-      setOtp("");
-      setOtpStatus("sent");
-      setMessage(`A new verification code was sent to ${form.email}.`);
-    } catch (resendError) {
-      setOtpStatus("failed");
-      showEmailError(resendError);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function verifyCode(event) {
-    event.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      const result = await api("/auth/registration/verify", {
-        method: "POST",
-        auth: false,
-        body: JSON.stringify({ challengeId, otp }),
+        body: JSON.stringify({ ...form, password }),
       });
       setRegistration(result);
-    } catch (verifyError) {
-      showEmailError(verifyError);
+    } catch (submitError) {
+      setError(submitError.message);
     } finally {
       setBusy(false);
     }
@@ -231,10 +114,10 @@ export default function Register() {
         <p className="eyebrow">CREATE AN ACCOUNT</p>
         <h1>Student registration</h1>
         <p className="auth-subtitle">
-          Verify your email to create a student account. Student records are visible to Admins only.
+          Create a student account. Student records are visible to Admins only.
         </p>
         <ol className="registration-steps" aria-label="Registration steps">
-          {["Details", "Password", "Email code"].map((label, index) => (
+          {["Details", "Password"].map((label, index) => (
             <li className={step === index + 1 ? "step-active" : step > index + 1 ? "step-complete" : ""} key={label}>
               <span>{step > index + 1 ? "✓" : index + 1}</span>
               {label}
@@ -242,7 +125,6 @@ export default function Register() {
           ))}
         </ol>
         <Notice type="error" onClose={() => setError("")}>{error}</Notice>
-        <Notice type="success" onClose={() => setMessage("")}>{message}</Notice>
 
         {step === 1 && (
           <form className="form-stack" onSubmit={handleDetailsSubmit}>
@@ -344,7 +226,7 @@ export default function Register() {
               </label>
             </div>
             <button type="submit" className="button button-primary button-full" disabled={busy}>
-              {busy ? "Saving details..." : <>Continue <ChevronRight size={17} /></>}
+              <>Continue <ChevronRight size={17} /></>
             </button>
           </form>
         )}
@@ -394,38 +276,7 @@ export default function Register() {
             </label>
             <div className="registration-actions">
               <button type="button" className="button button-quiet" onClick={() => setStep(1)} disabled={busy}><ChevronLeft size={16} /> Back</button>
-              <button type="submit" className="button button-primary" disabled={busy || !passwordIsStrong || !passwordsMatch}>{busy ? "Continuing..." : "Next"}</button>
-            </div>
-          </form>
-        )}
-
-        {step === 3 && (
-          <form className="form-stack" onSubmit={verifyCode}>
-            <p className="registration-step-note">
-              {otpStatus === "sending"
-                ? `Sending a verification code to ${form.email}...`
-                : otpStatus === "failed"
-                  ? `We could not send a verification code to ${form.email}. Check the error above, then try again.`
-                  : otpStatus === "expired" || (otpStatus === "sent" && !otpExpiresSeconds)
-                    ? `The code sent to ${form.email} has expired. Request a new code to continue.`
-                    : `Enter the six-digit code sent to ${form.email}. Code expires in ${Math.floor(otpExpiresSeconds / 60)}:${String(otpExpiresSeconds % 60).padStart(2, "0")}.`}
-            </p>
-            <label className="form-field">
-              <span>Email verification code</span>
-              <input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" aria-label="Six-digit verification code" disabled={otpStatus !== "sent" || !otpExpiresSeconds} required />
-            </label>
-            <button type="submit" className="button button-primary button-full" disabled={busy || otpStatus !== "sent" || !otpExpiresSeconds || otp.length !== 6}>
-              {busy ? "Submitting..." : "Submit"}
-            </button>
-            <div className="registration-actions">
-              <button type="button" className="button button-quiet" onClick={() => { setStep(1); setError(""); }} disabled={busy}><ChevronLeft size={16} /> Change details</button>
-              <button type="button" className="button button-quiet" onClick={resendCode} disabled={busy || resendSeconds > 0}>
-                {resendSeconds
-                  ? `Resend in ${resendSeconds}s`
-                  : otpStatus === "failed"
-                    ? "Retry sending code"
-                    : "Resend code"}
-              </button>
+              <button type="submit" className="button button-primary" disabled={busy || !passwordIsStrong || !passwordsMatch}>{busy ? "Creating account..." : "Submit"}</button>
             </div>
           </form>
         )}
@@ -433,15 +284,22 @@ export default function Register() {
         <p className="auth-switch">Already registered? <Link to="/login">Sign in</Link></p>
       </div>
       {registration && (
-        <Modal title="Student account created" subtitle="Your email has been verified." onClose={goToLogin}>
+        <Modal title="Account created successfully" subtitle="Your student registration is complete." onClose={goToLogin}>
           <div className="registration-success">
             <CheckCircle2 size={42} />
-            <p>Your student account is ready. Sign in to continue to your profile.</p>
-            {registration.emailNotificationSent === false && <Notice type="info">Your account was created, but the confirmation email could not be sent.</Notice>}
+            <p>Your student details have been saved. Sign in to continue to your profile.</p>
+            {registration.emailNotificationSent ? (
+              <Notice type="success">
+                The account-created email was sent to {form.email}.
+              </Notice>
+            ) : (
+              <Notice type="info">
+                Your account was created, but the confirmation email could not be sent. Please contact the administrator.
+              </Notice>
+            )}
             <div className="modal-footer">
               <button type="button" className="button button-primary" onClick={goToLogin}>Go to sign in</button>
             </div>
-            <small>You’ll be redirected to sign in shortly.</small>
           </div>
         </Modal>
       )}

@@ -39,9 +39,9 @@ router.patch("/:id/role", async (req, res, next) => {
 
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "User not found." });
-    if (role === "student" && (!user.studentProfile || !user.emailVerifiedAt)) {
+    if (role === "student" && !user.studentProfile) {
       return res.status(400).json({
-        message: "Student access requires a verified student registration.",
+        message: "Student access requires a student profile.",
       });
     }
 

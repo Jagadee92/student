@@ -372,11 +372,97 @@ router.post(
   },
 );
 
-router.post("/register", (_req, res) => {
-  res.status(410).json({
-    message: "Registration now requires email verification. Please use the three-step signup form.",
-  });
-});
+router.post(
+  "/register",
+  [
+    ...registrationDetailsRules,
+    body("password")
+      .isString()
+      .custom(isStrongPassword)
+      .withMessage(
+        "Password must be 8 to 100 characters and include uppercase, lowercase, number, and special characters.",
+      ),
+  ],
+  async (req, res, next) => {
+    try {
+      if (sendErrors(req, res)) return;
+
+      const {
+        firstName,
+        lastName,
+        email,
+        rollNumber,
+        gender,
+        phone,
+        address,
+        program: requestedProgram,
+        branch,
+      } = req.body;
+      const program = getRegistrationProgram(requestedProgram);
+      if (!program) {
+        return res.status(400).json({
+          message: "Choose a valid course of study.",
+        });
+      }
+      if (`${firstName.trim()} ${lastName.trim()}`.length > 100) {
+        return res.status(400).json({
+          message: "First and last name together must be 100 characters or fewer.",
+        });
+      }
+
+      const yearOfStudy = Number(req.body.yearOfStudy);
+      const passingOutYear = Number(req.body.passingOutYear);
+      if (yearOfStudy > program.durationYears) {
+        return res.status(400).json({
+          message: `Year of study must be between 1 and ${program.durationYears} for ${program.name}.`,
+        });
+      }
+
+      const normalizedEmail = cleanEmail(email);
+      const normalizedRollNumber = rollNumber.trim().toUpperCase();
+      if (await User.exists({ email: normalizedEmail })) {
+        return res.status(409).json({
+          message: "An account already exists for this email. Please sign in.",
+        });
+      }
+      if (
+        await User.exists({
+          "studentProfile.rollNumber": normalizedRollNumber,
+        })
+      ) {
+        return res.status(409).json({
+          message: "That college roll number is already registered.",
+        });
+      }
+
+      const user = await User.create({
+        name: `${firstName.trim()} ${lastName.trim()}`,
+        email: normalizedEmail,
+        passwordHash: await bcrypt.hash(req.body.password, 12),
+        role: "student",
+        studentProfile: {
+          rollNumber: normalizedRollNumber,
+          gender,
+          phone: phone.trim(),
+          address: address.trim(),
+          program: program.name,
+          branch: branch.trim(),
+          yearOfStudy,
+          passingOutYear,
+        },
+      });
+      const emailNotificationSent = await sendRegisterEmail(user);
+
+      res.status(201).json({
+        message: "Your student account was created successfully.",
+        user: getPublicUser(user),
+        emailNotificationSent,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post(
   "/login",
@@ -433,21 +519,14 @@ router.patch(
     body("email").optional().isEmail().normalizeEmail(),
   ],
   async (req, res, next) => {
-    try {
-      if (sendErrors(req, res)) return;
-      if (
-        req.user.role === "student" &&
-        req.body.email !== undefined &&
-        cleanEmail(req.body.email) !== req.user.email
-      ) {
-        return res.status(400).json({
-          message: "Student email changes require email verification.",
-        });
-      }
-      const updates = {};
-      if (req.body.name !== undefined) updates.name = req.body.name.trim();
-      if (req.body.email !== undefined)
-        updates.email = cleanEmail(req.body.email);
+  try {
+    if (sendErrors(req, res)) return;
+    const updates = {};
+    if (req.body.name !== undefined) updates.name = req.body.name.trim();
+    if (req.body.email !== undefined) {
+      updates.email = cleanEmail(req.body.email);
+      if (updates.email !== req.user.email) updates.emailVerifiedAt = null;
+    }
 
       const user = await User.findByIdAndUpdate(req.user._id, updates, {
         new: true,

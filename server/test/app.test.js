@@ -113,7 +113,7 @@ test("malformed JSON is rejected with a readable error", async () => {
   assert.equal(data.message, "Request body contains invalid JSON.");
 });
 
-test("student registration requires the staged email-verification flow", async () => {
+test("student registration validates details and password before database access", async () => {
   const response = await fetch(`${baseUrl}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -121,8 +121,9 @@ test("student registration requires the staged email-verification flow", async (
   });
   const data = await response.json();
 
-  assert.equal(response.status, 410);
-  assert.match(data.message, /email verification/i);
+  assert.equal(response.status, 400);
+  assert.equal(data.message, "Please correct the highlighted information.");
+  assert.ok(data.errors.some((error) => error.field === "password"));
 });
 
 test("registration details reject incomplete requests before database access", async () => {
@@ -203,12 +204,22 @@ test("registration validates the fixed course options and study-year limits", as
   }
 });
 
-test("registration OTP endpoint rejects weak passwords", async () => {
-  const response = await fetch(`${baseUrl}/api/auth/registration/send-otp`, {
+test("student registration rejects weak passwords", async () => {
+  const response = await fetch(`${baseUrl}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      challengeId: "not-a-valid-id",
+      firstName: "College",
+      lastName: "Student",
+      email: "weak-password@example.com",
+      rollNumber: "CS2026003",
+      gender: "Other",
+      phone: "+15551234567",
+      address: "42 College Road",
+      program: "B-Tech",
+      branch: "Others",
+      yearOfStudy: 1,
+      passingOutYear: 2030,
       password: "weakpass123",
     }),
   });

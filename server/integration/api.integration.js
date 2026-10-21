@@ -352,53 +352,59 @@ test("student CRUD, import/export, and upload routes", async () => {
   assert.equal((await request(`/api/students/${id}`, { role: "admin", method: "DELETE" })).status, 200);
 });
 
-test("admin role management and staged signup safeguards", async () => {
+test("admin role management and direct student registration", async () => {
   assert.equal((await request("/api/users", { role: "staff" })).status, 403);
   assert.equal((await request(`/api/users/${admin._id}/role`, { role: "admin", method: "PATCH", body: { role: "staff" } })).status, 400);
   assert.equal((await request(`/api/users/${admin._id}`, { role: "admin", method: "DELETE" })).status, 400);
   assert.equal((await request(`/api/users/${viewer._id}/role`, { role: "admin", method: "PATCH", body: { role: "student" } })).status, 400);
   assert.equal((await request(`/api/users/${viewer._id}/role`, { role: "admin", method: "PATCH", body: { role: "staff" } })).status, 200);
 
-  assert.equal((await request("/api/auth/register", { method: "POST", body: {} })).status, 410);
-  const duplicateEmail = await request("/api/auth/registration/start", {
+  const duplicateEmail = await request("/api/auth/register", {
     method: "POST",
     body: {
       firstName: "Duplicate",
       lastName: "Student",
       email: studentUser.email,
       rollNumber: `D${Date.now()}`,
+      gender: "Other",
       phone: "+15551234567",
       address: "Duplicate registration address",
       program: "B-Tech",
       branch: "Computer Science",
       yearOfStudy: 1,
       passingOutYear: 2030,
+      password: testPassword,
     },
   });
   assert.equal(duplicateEmail.status, 409);
 
   const registration = {
-    firstName: "Pending",
+    firstName: "Registered",
     lastName: "Student",
-    email: `pending-${emailTag}@example.invalid`,
+    email: `registered-${emailTag}@example.invalid`,
     rollNumber: `P${Date.now()}`,
+    gender: "Other",
     phone: "+15551234567",
-    address: "Pending registration address",
+    address: "Student registration address",
     program: "B-Tech",
     branch: "Computer Science",
     yearOfStudy: 1,
     passingOutYear: 2030,
+    password: testPassword,
   };
-  const started = await request("/api/auth/registration/start", { method: "POST", body: registration });
-  assert.equal(started.status, 201);
-  assert.equal(await User.exists({ email: registration.email }), null);
-  assert.equal(await PendingRegistration.exists({ _id: started.data.challengeId }), true);
-  const blockedByMissingSmtp = await request("/api/auth/registration/send-otp", {
+  const created = await request("/api/auth/register", {
     method: "POST",
-    body: { challengeId: started.data.challengeId, password: testPassword },
+    body: registration,
   });
-  assert.equal(blockedByMissingSmtp.status, 503);
-  assert.equal(await User.exists({ email: registration.email }), null);
+  assert.equal(created.status, 201);
+  assert.equal(created.data.emailNotificationSent, false);
+  assert.equal(created.data.user.role, "student");
+
+  const savedUser = await User.findOne({ email: registration.email });
+  assert.ok(savedUser);
+  assert.equal(savedUser.studentProfile.rollNumber, registration.rollNumber.toUpperCase());
+  assert.equal(savedUser.emailVerifiedAt, null);
+  assert.equal(await bcrypt.compare(testPassword, savedUser.passwordHash), true);
 });
 
 test("course and instructor CRUD, search, and assignment safeguards", async () => {
