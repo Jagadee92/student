@@ -13,12 +13,16 @@ import programRoutes from "./routes/programs.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
 const app = express();
-const allowedOrigins = String(
-  process.env.CLIENT_ORIGIN || "http://localhost:5174,https://client-9foq.onrender.com",
-)
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  "http://localhost:5174",
+  "https://localhost:5174",
+  "https://client-9foq.onrender.com",
+  "https://student-1-7clo.onrender.com",
+  ...String(process.env.CLIENT_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+];
 
 app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "same-site" } }));

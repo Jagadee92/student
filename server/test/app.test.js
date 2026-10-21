@@ -50,6 +50,22 @@ test("CORS preflight responses are cacheable to avoid repeated browser round tri
   assert.equal(response.headers.get("access-control-max-age"), "86400");
 });
 
+test("CORS allows the configured Render frontend", async () => {
+  const response = await fetch(`${baseUrl}/api/health`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://client-9foq.onrender.com",
+      "Access-Control-Request-Method": "GET",
+    },
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(
+    response.headers.get("access-control-allow-origin"),
+    "https://client-9foq.onrender.com",
+  );
+});
+
 test("student endpoints require authentication", async () => {
   const response = await fetch(`${baseUrl}/api/students`);
   const data = await response.json();
