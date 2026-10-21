@@ -37,6 +37,7 @@ export default function Register() {
   const [otp, setOtp] = useState("");
   const [resendSeconds, setResendSeconds] = useState(0);
   const [otpExpiresSeconds, setOtpExpiresSeconds] = useState(0);
+  const [otpStatus, setOtpStatus] = useState("idle");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -97,14 +98,19 @@ export default function Register() {
   function showEmailError(requestError) {
     setError(requestError.message);
     setMessage("");
+    if (requestError.status === 429 && requestError.data?.retryAfterSeconds) {
+      setResendSeconds(requestError.data.retryAfterSeconds);
+    }
     if (requestError.data?.code === "OTP_EXPIRED") {
       setOtpExpiresSeconds(0);
+      setOtpStatus("expired");
       setOtp("");
     }
     if (requestError.data?.code === "REGISTRATION_EXPIRED") {
       setStep(1);
       setChallengeId("");
       setOtp("");
+      setOtpStatus("idle");
     }
   }
 
@@ -130,10 +136,23 @@ export default function Register() {
   async function handlePasswordSubmit(event) {
     event.preventDefault();
     setError("");
+    setMessage("");
     if (password !== confirmPassword) {
       setError("The passwords do not match.");
       return;
     }
+    if (!passwordIsStrong) {
+      setError(
+        "Use 8 to 100 characters with uppercase and lowercase letters, a number, and a special character.",
+      );
+      return;
+    }
+
+    setStep(3);
+    setOtpStatus("sending");
+    setOtpExpiresSeconds(0);
+    setOtp("");
+    setMessage(`Sending a verification code to ${form.email}...`);
     setBusy(true);
     try {
       const result = await api("/auth/registration/send-otp", {
@@ -144,9 +163,10 @@ export default function Register() {
       setResendSeconds(result.resendAfterSeconds || 60);
       setOtpExpiresSeconds(result.expiresInSeconds || 600);
       setOtp("");
-      setStep(3);
+      setOtpStatus("sent");
       setMessage(`Verification code sent to ${form.email}. Check your inbox and spam folder.`);
     } catch (submitError) {
+      setOtpStatus("failed");
       showEmailError(submitError);
     } finally {
       setBusy(false);
@@ -155,6 +175,8 @@ export default function Register() {
 
   async function resendCode() {
     setError("");
+    setMessage(`Sending a verification code to ${form.email}...`);
+    setOtpStatus("sending");
     setBusy(true);
     try {
       const result = await api("/auth/registration/send-otp", {
@@ -165,8 +187,10 @@ export default function Register() {
       setResendSeconds(result.resendAfterSeconds || 60);
       setOtpExpiresSeconds(result.expiresInSeconds || 600);
       setOtp("");
+      setOtpStatus("sent");
       setMessage(`A new verification code was sent to ${form.email}.`);
     } catch (resendError) {
+      setOtpStatus("failed");
       showEmailError(resendError);
     } finally {
       setBusy(false);
@@ -370,7 +394,7 @@ export default function Register() {
             </label>
             <div className="registration-actions">
               <button type="button" className="button button-quiet" onClick={() => setStep(1)} disabled={busy}><ChevronLeft size={16} /> Back</button>
-              <button type="submit" className="button button-primary" disabled={busy || !passwordIsStrong || !passwordsMatch}>{busy ? "Sending code..." : "Email verification code"}</button>
+              <button type="submit" className="button button-primary" disabled={busy || !passwordIsStrong || !passwordsMatch}>{busy ? "Continuing..." : "Next"}</button>
             </div>
           </form>
         )}
@@ -378,22 +402,29 @@ export default function Register() {
         {step === 3 && (
           <form className="form-stack" onSubmit={verifyCode}>
             <p className="registration-step-note">
-              Enter the six-digit code sent to <strong>{form.email}</strong>.
-              {otpExpiresSeconds
-                ? ` Code expires in ${Math.floor(otpExpiresSeconds / 60)}:${String(otpExpiresSeconds % 60).padStart(2, "0")}.`
-                : " This code has expired. Request a new code to continue."}
+              {otpStatus === "sending"
+                ? `Sending a verification code to ${form.email}...`
+                : otpStatus === "failed"
+                  ? `We could not send a verification code to ${form.email}. Check the error above, then try again.`
+                  : otpStatus === "expired" || (otpStatus === "sent" && !otpExpiresSeconds)
+                    ? `The code sent to ${form.email} has expired. Request a new code to continue.`
+                    : `Enter the six-digit code sent to ${form.email}. Code expires in ${Math.floor(otpExpiresSeconds / 60)}:${String(otpExpiresSeconds % 60).padStart(2, "0")}.`}
             </p>
             <label className="form-field">
               <span>Email verification code</span>
-              <input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" aria-label="Six-digit verification code" disabled={!otpExpiresSeconds} required />
+              <input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" aria-label="Six-digit verification code" disabled={otpStatus !== "sent" || !otpExpiresSeconds} required />
             </label>
-            <button type="submit" className="button button-primary button-full" disabled={busy || !otpExpiresSeconds || otp.length !== 6}>
+            <button type="submit" className="button button-primary button-full" disabled={busy || otpStatus !== "sent" || !otpExpiresSeconds || otp.length !== 6}>
               {busy ? "Verifying..." : "Verify email and create account"}
             </button>
             <div className="registration-actions">
               <button type="button" className="button button-quiet" onClick={() => { setStep(1); setError(""); }} disabled={busy}><ChevronLeft size={16} /> Change details</button>
               <button type="button" className="button button-quiet" onClick={resendCode} disabled={busy || resendSeconds > 0}>
-                {resendSeconds ? `Resend in ${resendSeconds}s` : "Resend code"}
+                {resendSeconds
+                  ? `Resend in ${resendSeconds}s`
+                  : otpStatus === "failed"
+                    ? "Retry sending code"
+                    : "Resend code"}
               </button>
             </div>
           </form>

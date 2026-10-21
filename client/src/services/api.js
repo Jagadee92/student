@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "../utils/apiBaseUrl.js";
+import { getApiErrorMessage } from "../utils/apiErrorMessage.js";
 
 const API_BASE_URL = getApiBaseUrl(import.meta.env.VITE_API_URL);
 
@@ -31,13 +32,12 @@ export async function api(path, options = {}) {
   }
 
   if (!response.ok) {
-    let message = `Request failed with status ${response.status}.`;
     let data = null;
     try {
       data = await response.json();
-      message = data.message || message;
     } catch {
     }
+    const message = getApiErrorMessage(data, response.status);
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
