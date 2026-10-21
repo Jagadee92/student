@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { api } from "../services/api.js";
+import { getLoginUser } from "../utils/loginResponse.js";
 
 const AuthContext = createContext(null);
 
@@ -26,6 +27,7 @@ export function AuthProvider({ children }) {
       auth: false,
       body: JSON.stringify({ email, password }),
     });
+    getLoginUser(data);
     saveSession(data);
     return data.user;
   }
