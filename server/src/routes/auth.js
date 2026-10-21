@@ -5,7 +5,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { body, validationResult } from "express-validator";
 import User from "../models/User.js";
 import PendingRegistration from "../models/PendingRegistration.js";
-import Program from "../models/Program.js";
 import { requireAuth } from "../middleware/auth.js";
 import {
   sendFailedLoginEmail,
@@ -22,6 +21,7 @@ import {
   verifyOtp,
 } from "../utils/otp.js";
 import { runInBackground } from "../utils/runInBackground.js";
+import { getRegistrationProgram, registrationPrograms } from "../utils/academicOptions.js";
 
 const router = Router();
 const registrationExpiryMs = 30 * 60 * 1000;
@@ -97,8 +97,8 @@ const registrationDetailsRules = [
   body("program")
     .isString()
     .trim()
-    .isLength({ min: 2, max: 120 })
-    .withMessage("Choose a valid course or program."),
+    .isIn(registrationPrograms.map((program) => program.name))
+    .withMessage("Choose a valid course of study."),
   body("branch")
     .isString()
     .trim()
@@ -128,12 +128,10 @@ router.post("/registration/start", registrationDetailsRules, async (req, res, ne
       program: requestedProgram,
       branch,
     } = req.body;
-    const program = await Program.findOne({
-      key: requestedProgram.trim().toLowerCase(),
-    });
+    const program = getRegistrationProgram(requestedProgram);
     if (!program) {
       return res.status(400).json({
-        message: "Choose a course or program offered by the college.",
+        message: "Choose a valid course of study.",
       });
     }
     if (`${firstName.trim()} ${lastName.trim()}`.length > 100) {

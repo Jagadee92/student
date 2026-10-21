@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { commonBranches, getProgramLabel } from "../src/utils/academicOptions.js";
+import {
+  commonBranches,
+  getProgramLabel,
+  studyPrograms,
+} from "../src/utils/academicOptions.js";
 
 test("program labels display the name managed by the college", () => {
   assert.equal(getProgramLabel("Bachelor of Computer Applications"), "Bachelor of Computer Applications");
@@ -12,4 +16,14 @@ test("common engineering branches are suggestions, not programs", () => {
     assert.ok(commonBranches.includes(branch));
   }
   assert.ok(!commonBranches.includes("Pharmacy"));
+  assert.ok(commonBranches.includes("Others"));
+});
+
+test("registration offers the requested courses with matching year limits", () => {
+  assert.deepEqual(studyPrograms, [
+    { name: "B-Tech", durationYears: 4 },
+    { name: "Degree", durationYears: 3 },
+    { name: "Pharmacy", durationYears: 4 },
+    { name: "MTech", durationYears: 2 },
+  ]);
 });

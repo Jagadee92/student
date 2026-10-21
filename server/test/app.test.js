@@ -145,7 +145,7 @@ test("student registration requires a supported gender before database access", 
     rollNumber: "CS2026001",
     phone: "+15551234567",
     address: "42 College Road",
-    program: "B.Tech",
+    program: "B-Tech",
     branch: "Computer Science",
     yearOfStudy: 1,
     passingOutYear: 2030,
@@ -165,5 +165,40 @@ test("student registration requires a supported gender before database access", 
     assert.equal(response.status, 400);
     assert.equal(data.message, "Please correct the highlighted information.");
     assert.ok(data.errors.some((error) => error.field === "gender"));
+  }
+});
+
+test("registration validates the fixed course options and study-year limits", async () => {
+  const registration = {
+    firstName: "College",
+    lastName: "Student",
+    email: "academic-check@example.com",
+    rollNumber: "CS2026002",
+    gender: "Other",
+    phone: "+15551234567",
+    address: "42 College Road",
+    program: "B-Tech",
+    branch: "Others",
+    yearOfStudy: 1,
+    passingOutYear: 2030,
+  };
+
+  for (const invalidValues of [
+    { program: "B.Tech" },
+    { yearOfStudy: 5 },
+  ]) {
+    const response = await fetch(`${baseUrl}/api/auth/registration/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...registration, ...invalidValues }),
+    });
+    const data = await response.json();
+
+    assert.equal(response.status, 400);
+    if (invalidValues.program) {
+      assert.ok(data.errors.some((error) => error.field === "program"));
+    } else {
+      assert.match(data.message, /Year of study must be between 1 and 4/);
+    }
   }
 });

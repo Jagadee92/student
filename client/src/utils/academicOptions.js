@@ -12,6 +12,14 @@ export const commonBranches = [
   "Chemical",
   "Biotechnology",
   "Agriculture",
+  "Others",
+];
+
+export const studyPrograms = [
+  { name: "B-Tech", durationYears: 4 },
+  { name: "Degree", durationYears: 3 },
+  { name: "Pharmacy", durationYears: 4 },
+  { name: "MTech", durationYears: 2 },
 ];
 
 export function getProgramLabel(value) {

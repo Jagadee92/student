@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle2, ChevronLeft, ChevronRight, UserRoundPlus } from "lucide-react";
-import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../services/api.js";
 import Modal from "../components/Modal.jsx";
 import Notice from "../components/Notice.jsx";
-import { commonBranches } from "../utils/academicOptions.js";
+import { commonBranches, studyPrograms } from "../utils/academicOptions.js";
 
 const initialForm = {
   firstName: "",
@@ -22,7 +21,6 @@ const initialForm = {
 };
 
 export default function Register() {
-  const { user } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(1);
   const [challengeId, setChallengeId] = useState("");
@@ -33,26 +31,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [registration, setRegistration] = useState(null);
-  const [programs, setPrograms] = useState([]);
-  const [programsLoading, setProgramsLoading] = useState(true);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    let active = true;
-    api("/programs/options", { auth: false })
-      .then((data) => {
-        if (active) setPrograms(data.items || []);
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError.message);
-      })
-      .finally(() => {
-        if (active) setProgramsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!resendSeconds) return undefined;
@@ -83,7 +62,9 @@ export default function Register() {
     }));
   }
 
-  const selectedProgram = programs.find((program) => program.name === form.program);
+  const selectedProgram = studyPrograms.find(
+    (program) => program.name === form.program,
+  );
 
   async function handleDetailsSubmit(event) {
     event.preventDefault();
@@ -228,27 +209,16 @@ export default function Register() {
                 <textarea name="address" value={form.address || ""} onChange={updateField} autoComplete="street-address" minLength="5" maxLength="300" rows="3" required />
               </label>
               <label className="form-field">
-                <span>Course / program</span>
+                <span>Course of study</span>
                 <select name="program" value={form.program} onChange={updateField} required>
-                  <option value="">Choose program</option>
-                  {programs.map((program) => (
-                    <option key={program.id} value={program.name}>
+                  <option value="">Choose course of study</option>
+                  {studyPrograms.map((program) => (
+                    <option key={program.name} value={program.name}>
                       {program.name}
                     </option>
                   ))}
                 </select>
-                <small>
-                  {programsLoading
-                    ? "Loading courses and programs..."
-                    : programs.length
-                      ? "Choose a course or program offered by the college."
-                      : user?.role === "admin"
-                        ? "Add a course or program before students can create accounts."
-                        : "No courses or programs are available yet. Please contact the college admin."}
-                </small>
-                {!programsLoading && !programs.length && user?.role === "admin" && (
-                  <Link to="/programs">Add a course or program</Link>
-                )}
+                <small>Select your current course of study.</small>
               </label>
               <label className="form-field">
                 <span>Branch / department</span>
@@ -269,7 +239,7 @@ export default function Register() {
               </label>
               <label className="form-field">
                 <span>Year of study</span>
-                <select name="yearOfStudy" value={form.yearOfStudy} onChange={updateField} required disabled={!form.program}>
+                <select name="yearOfStudy" value={form.yearOfStudy} onChange={updateField} required disabled={!selectedProgram}>
                   <option value="">Choose year</option>
                   {Array.from({ length: selectedProgram?.durationYears || 0 }, (_, index) => index + 1).map((year) => <option key={year} value={year}>{year}</option>)}
                 </select>
@@ -279,7 +249,7 @@ export default function Register() {
                 <input name="passingOutYear" type="number" min="1980" max="2100" value={form.passingOutYear} onChange={updateField} required />
               </label>
             </div>
-            <button type="submit" className="button button-primary button-full" disabled={busy || programsLoading || !programs.length}>
+            <button type="submit" className="button button-primary button-full" disabled={busy}>
               {busy ? "Saving details..." : <>Continue <ChevronRight size={17} /></>}
             </button>
           </form>
