@@ -37,8 +37,35 @@ const features = [
 export default function Home() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const greetingName = isAdmin
+    ? "Admin"
+    : user?.name?.trim() || "Guest";
+  const avatarInitials = greetingName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
   const signedInDestination = isAdmin ? "/dashboard" : "/profile";
   const destinationLabel = isAdmin ? "Open dashboard" : "Open my profile";
+
+  // Dynamic date formatting
+  const today = new Date();
+  const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+  const months = [
+    "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+    "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+  ];
+  const formattedDate = `${days[today.getDay()]}, ${today.getDate()} ${months[today.getMonth()]}`;
+
+  // Dynamic greeting
+  const hour = today.getHours();
+  let greeting = "Good morning";
+  if (hour >= 18) {
+    greeting = "Good evening";
+  } else if (hour >= 12) {
+    greeting = "Good afternoon";
+  }
 
   return (
     <>
@@ -106,12 +133,6 @@ export default function Home() {
                 </>
               )}
             </div>
-            <div className="hero-proof">
-              <CheckCircle2 size={17} />
-              <span>Responsive layout</span>
-              <CheckCircle2 size={17} />
-              <span>MongoDB-backed records</span>
-            </div>
           </div>
           <div
             className="hero-visual"
@@ -128,11 +149,11 @@ export default function Home() {
             </div>
             <div className="visual-welcome">
               <div>
-                <small>MONDAY, 19 OCTOBER</small>
-                <h3>Good morning, Admin</h3>
+                <small>{formattedDate}</small>
+                <h3>{greeting}</h3>
                 <p>Here is your campus at a glance.</p>
               </div>
-              <div className="visual-avatar">AD</div>
+              <div className="visual-avatar">{avatarInitials}</div>
             </div>
             <div className="visual-stats">
               <div>

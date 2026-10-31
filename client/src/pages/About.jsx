@@ -40,13 +40,7 @@ export default function About() {
             </p>
           </article>
         </div>
-        <div className="info-callout">
-          <strong>Built as a MERN stack project</strong>
-          <p>
-            The frontend uses React and Vite. The API uses Node.js, Express, and
-            Mongoose to work with MongoDB.
-          </p>
-        </div>
+        
       </div>
     </section>
   );
